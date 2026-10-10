@@ -91,6 +91,20 @@ code, .mono { font-family: var(--font-code); }
 .zoom button { border: 0; background: none; padding: 5px 10px; cursor: pointer; min-width: 34px; }
 .zoom button + button { border-left: 1px solid var(--line); }
 .zoom button:hover { background: var(--hover); }
+.pad { position: absolute; left: 12px; bottom: 12px; display: grid; grid-template-columns: repeat(3, 30px);
+  grid-auto-rows: 30px; gap: 3px; }
+.pad button { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; cursor: pointer;
+  font-size: 11px; color: var(--muted); padding: 0; touch-action: none; user-select: none; }
+.pad button:hover { background: var(--hover); color: var(--ink); }
+.pad button:active { background: color-mix(in srgb, var(--fn) 14%, var(--panel)); color: var(--ink); }
+.mini { position: absolute; right: 12px; bottom: 12px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px; cursor: crosshair; line-height: 0; touch-action: none; }
+.mini canvas { width: 180px; height: 120px; display: block; }
+.hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); font-size: 11.5px; color: var(--faint);
+  background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 2px 8px; border-radius: 4px;
+  pointer-events: none; white-space: nowrap; }
+@media (max-width: 1100px) { .hint { display: none; } }
+@media (max-width: 520px) { .mini { display: none; } }
 .status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
 
 .node { cursor: pointer; }
@@ -212,6 +226,17 @@ pre.code .l::before { content: attr(data-n); display: inline-block; width: 3.2em
       </div>
     </div>
     <div class="status" id="status">Laying out the map…</div>
+    <div class="pad" role="group" aria-label="Move the map">
+      <span></span><button type="button" data-pan="0,1" aria-label="Move up" title="Move up (↑)">▲</button><span></span>
+      <button type="button" data-pan="1,0" aria-label="Move left" title="Move left (←)">◀</button>
+      <button type="button" id="padHome" aria-label="Back to the start of this flow" title="Back to start (0)">●</button>
+      <button type="button" data-pan="-1,0" aria-label="Move right" title="Move right (→)">▶</button>
+      <span></span><button type="button" data-pan="0,-1" aria-label="Move down" title="Move down (↓)">▼</button><span></span>
+    </div>
+    <div class="mini" id="miniWrap" title="Click or drag to jump around the map">
+      <canvas id="mini" width="180" height="120" aria-label="Overview of the whole map"></canvas>
+    </div>
+    <div class="hint" id="hint">Drag, arrow keys or the pad to move · ⌘/Ctrl + scroll or pinch to zoom</div>
   </main>
 
   <aside class="insp" aria-label="Inspector">
@@ -786,7 +811,11 @@ function highlightCode(src, start, lang) {
 
 /* ---------- pan & zoom ---------- */
 const svg = ui("canvas");
-function applyTf() { const t = state.tf; vpEl.setAttribute("transform", `translate(${t.x} ${t.y}) scale(${t.k})`); }
+function applyTf() {
+  const t = state.tf; vpEl.setAttribute("transform", `translate(${t.x} ${t.y}) scale(${t.k})`);
+  drawMini();
+}
+function pan(dx, dy) { state.tf.x += dx; state.tf.y += dy; applyTf(); }
 function fit(whole) {
   const r = state.layout; if (!r) return;
   const W = svg.clientWidth, H = svg.clientHeight;
@@ -816,9 +845,90 @@ function zoomAt(f, cx, cy) {
 }
 svg.addEventListener("wheel", e => {
   e.preventDefault();
-  const r = svg.getBoundingClientRect();
-  zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018)), e.clientX - r.left, e.clientY - r.top);
+  if (e.ctrlKey || e.metaKey) {  // pinch on a trackpad arrives as ctrl+wheel
+    const r = svg.getBoundingClientRect();
+    zoomAt(Math.exp(-e.deltaY * (e.ctrlKey && !e.metaKey ? 0.01 : 0.0025)), e.clientX - r.left, e.clientY - r.top);
+  } else {                        // two-finger scroll / mouse wheel moves the map
+    const lineMode = e.deltaMode === 1 ? 32 : 1;
+    pan(-(e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * lineMode, -(e.shiftKey && !e.deltaX ? 0 : e.deltaY) * lineMode);
+  }
 }, { passive: false });
+
+/* arrow pad: click to nudge, hold to keep moving */
+const STEP = 90;
+let padTimer = null;
+const stopPad = () => { clearInterval(padTimer); padTimer = null; };
+document.querySelectorAll(".pad [data-pan]").forEach(b => {
+  const [x, y] = b.dataset.pan.split(",").map(Number);
+  b.addEventListener("pointerdown", e => {
+    e.preventDefault(); pan(x * STEP, y * STEP); stopPad();
+    padTimer = setInterval(() => pan(x * STEP / 4, y * STEP / 4), 40);
+  });
+  b.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pan(x * STEP, y * STEP); } });
+});
+["pointerup", "pointercancel", "pointerleave", "blur"].forEach(ev => window.addEventListener(ev, stopPad));
+document.querySelectorAll(".pad button").forEach(b => b.addEventListener("pointerleave", stopPad));
+ui("padHome").onclick = () => fit();
+
+/* keyboard: arrows / WASD move (Shift = faster), + − zoom, 0 back to start, F fits everything */
+document.addEventListener("keydown", e => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "select" || tag === "textarea" || e.metaKey || e.ctrlKey || e.altKey) return;
+  const fast = e.shiftKey ? 4 : 1;
+  const moves = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [1, 0], ArrowRight: [-1, 0],
+                  w: [0, 1], s: [0, -1], a: [1, 0], d: [-1, 0] };
+  const m = moves[e.key] || moves[e.key.toLowerCase?.()];
+  const cx = svg.clientWidth / 2, cy = svg.clientHeight / 2;
+  if (m) { e.preventDefault(); pan(m[0] * STEP * fast, m[1] * STEP * fast); }
+  else if (e.key === "+" || e.key === "=") { e.preventDefault(); zoomAt(1.2, cx, cy); }
+  else if (e.key === "-" || e.key === "_") { e.preventDefault(); zoomAt(1 / 1.2, cx, cy); }
+  else if (e.key === "0") { e.preventDefault(); fit(); }
+  else if (e.key === "f" || e.key === "F") { e.preventDefault(); fit(true); }
+});
+
+/* minimap: the whole layout in miniature, with the visible area outlined */
+const mini = ui("mini"), mctx = mini.getContext("2d");
+let miniScale = null;
+function drawMini() {
+  const r = state.layout; if (!r || !mctx) return;
+  const dpr = window.devicePixelRatio || 1, W = 180, H = 120;
+  if (mini.width !== W * dpr) { mini.width = W * dpr; mini.height = H * dpr; }
+  mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  mctx.clearRect(0, 0, W, H);
+  const s = Math.min(W / r.width, H / r.height);
+  const ox = (W - r.width * s) / 2, oy = (H - r.height * s) / 2;
+  miniScale = { s, ox, oy };
+  const colors = { entry: css("--entry"), function: css("--fn"), method: css("--fn"), class: css("--cls"), data: css("--data") };
+  for (const [id, p] of POS) {
+    const n = N.get(id); if (!n) continue;
+    const big = n.kind === "class" || n.kind === "data";
+    mctx.globalAlpha = big ? 0.18 : 0.75;
+    mctx.fillStyle = colors[n.kind] || css("--muted");
+    mctx.fillRect(ox + p.x * s, oy + p.y * s, Math.max(1.5, p.w * s), Math.max(1.5, p.h * s));
+  }
+  mctx.globalAlpha = 1;
+  const t = state.tf;
+  const vx = ox + (-t.x / t.k) * s, vy = oy + (-t.y / t.k) * s;
+  const vw = (svg.clientWidth / t.k) * s, vh = (svg.clientHeight / t.k) * s;
+  mctx.strokeStyle = css("--ink"); mctx.lineWidth = 1.5;
+  mctx.strokeRect(vx, vy, vw, vh);
+  mctx.fillStyle = css("--fn"); mctx.globalAlpha = 0.08; mctx.fillRect(vx, vy, vw, vh); mctx.globalAlpha = 1;
+}
+function miniJump(e) {
+  if (!miniScale) return;
+  const b = mini.getBoundingClientRect();
+  const mx = (e.clientX - b.left) * (180 / b.width), my = (e.clientY - b.top) * (120 / b.height);
+  const lx = (mx - miniScale.ox) / miniScale.s, ly = (my - miniScale.oy) / miniScale.s;
+  const t = state.tf;
+  t.x = svg.clientWidth / 2 - lx * t.k; t.y = svg.clientHeight / 2 - ly * t.k;
+  applyTf();
+}
+let miniDrag = false;
+ui("miniWrap").addEventListener("pointerdown", e => { miniDrag = true; ui("miniWrap").setPointerCapture(e.pointerId); miniJump(e); });
+ui("miniWrap").addEventListener("pointermove", e => { if (miniDrag) miniJump(e); });
+ui("miniWrap").addEventListener("pointerup", () => { miniDrag = false; });
+ui("miniWrap").addEventListener("pointercancel", () => { miniDrag = false; });
+try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => drawMini()); } catch {}
 let drag = null, moved = false;
 const pointers = new Map();
 svg.addEventListener("pointerdown", e => {

@@ -45,7 +45,8 @@ Python 3.10+. The only dependency is `tree-sitter-language-pack`; language gramm
 - **Classes as containers**: methods sit inside their class or struct. Data types (dataclasses, structs, interfaces, enums, records) show their fields.
 - **Storyline**: a plain-language walkthrough generated from the graph, e.g. "`main()` creates `Inventory`, `Order` and `OrderItem`, then calls `validate_order()` and `process_order()`." Every name links back to the map.
 - **Inspector**: click any box for its signature, location, source, and everything it calls, creates, uses or is used by. For GitHub repos there's a **view on GitHub** link pinned to the exact commit.
-- **Search**, neighbors view, group by file, pan and zoom, light and dark themes.
+- **Moving around**: drag the map, use the on-screen arrow pad or the arrow keys (Shift moves faster), or click and drag the minimap to jump anywhere. Two-finger scroll pans; pinch or ⌘/Ctrl + scroll zooms. `+` / `−` zoom, `0` returns to the start of the flow, `F` fits everything.
+- **Search**, neighbors view, group by file, light and dark themes.
 
 ## How it works
 
