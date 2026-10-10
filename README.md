@@ -18,13 +18,13 @@ It writes one self-contained `repomap.html`. Open it in a browser; it works offl
 Install it in its own environment so it never touches your other Python packages. [pipx](https://pipx.pypa.io) does that for you:
 
 ```bash
-pipx install git+https://github.com/OWNER/repomap
+pipx install git+https://github.com/vishesh711/repomap
 ```
 
 Or from a clone, in a virtualenv:
 
 ```bash
-git clone https://github.com/OWNER/repomap && cd repomap
+git clone https://github.com/vishesh711/repomap && cd repomap
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
@@ -88,7 +88,7 @@ This repo is also a GitHub Action. Copy [`docs/publish-to-pages.yml`](docs/publi
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: OWNER/repomap@main
+- uses: vishesh711/repomap@main
   with:
     output: repomap-site/index.html
 ```
