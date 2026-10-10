@@ -6,6 +6,6 @@ dist/
 .venv/
 venv/
 .pytest_cache/
-codemap.html
-*.codemap.html
+repomap.html
+*.repomap.html
 graph.json

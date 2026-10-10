@@ -1,9 +1,9 @@
 """
-codemap: turn a codebase into an interactive storyline map.
+repomap: turn a codebase into an interactive storyline map.
 
-    codemap path/to/project                  # a folder on your machine
-    codemap https://github.com/owner/repo    # any public GitHub repo (cloned for you)
-    codemap owner/repo --branch dev -o map.html
+    repomap path/to/project                  # a folder on your machine
+    repomap https://github.com/owner/repo    # any public GitHub repo (cloned for you)
+    repomap owner/repo --branch dev -o map.html
 
 Python, JavaScript, TypeScript, Go, Java, C#, Rust, C, C++, Ruby and PHP.
 """
@@ -59,7 +59,7 @@ def clone(target: str, branch: str | None) -> tuple[Path, dict]:
         raise SystemExit(f"Not a GitHub repo: {target}")
     slug = f"{m['owner']}/{m['repo']}"
     ref = branch or m["ref"]
-    dest = Path(tempfile.mkdtemp(prefix="codemap-")) / m["repo"]
+    dest = Path(tempfile.mkdtemp(prefix="repomap-")) / m["repo"]
     cmd = ["clone", "--depth", "1", "--quiet"] + (["--branch", ref] if ref else []) + \
           [f"https://github.com/{slug}.git", str(dest)]
     print(f"Cloning {slug}{' @ ' + ref if ref else ''} ...", file=sys.stderr)
@@ -72,11 +72,11 @@ def clone(target: str, branch: str | None) -> tuple[Path, dict]:
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="codemap", description=__doc__,
+    p = argparse.ArgumentParser(prog="repomap", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("target", nargs="?", default=".",
                    help="folder, GitHub URL, or owner/repo (default: current folder)")
-    p.add_argument("-o", "--out", default="codemap.html", help="HTML file to write (default: codemap.html)")
+    p.add_argument("-o", "--out", default="repomap.html", help="HTML file to write (default: repomap.html)")
     p.add_argument("--json", metavar="FILE", help="also write the raw graph as JSON")
     p.add_argument("--branch", help="branch or tag to map when cloning")
     p.add_argument("--subdir", help="only map this folder inside the repo")

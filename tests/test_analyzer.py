@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from codemap.analyzer import Analyzer
+from repomap.analyzer import Analyzer
 
 SHOP = Path(__file__).parent.parent / "examples" / "shop"
 

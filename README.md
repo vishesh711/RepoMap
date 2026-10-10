@@ -1,25 +1,37 @@
-# codemap
+# repomap
 
 Turn any codebase into an interactive **storyline map**: where execution starts, what each function calls, which classes hold which methods, and which data structures everything touches.
 
 Built for reading code you didn't write line by line, especially code an AI generated for you.
 
 ```bash
-codemap https://github.com/owner/repo     # any public GitHub repo
-codemap path/to/project                    # a folder on your machine
+repomap https://github.com/owner/repo     # any public GitHub repo
+repomap path/to/project                    # a folder on your machine
 ```
 
-It writes one self-contained `codemap.html`. Open it in a browser; it works offline.
+It writes one self-contained `repomap.html`. Open it in a browser; it works offline.
 
 **Languages:** Python · TypeScript · JavaScript (incl. React/JSX) · Go · Java · C# · Rust · C · C++ · Ruby · PHP. Mixed-language repos are mapped together.
 
 ## Install
 
+Install it in its own environment so it never touches your other Python packages. [pipx](https://pipx.pypa.io) does that for you:
+
 ```bash
-pip install git+https://github.com/OWNER/codemap
+pipx install git+https://github.com/OWNER/repomap
 ```
 
-Python 3.10+. Language grammars come from `tree-sitter-language-pack` and are fetched on first use.
+Or from a clone, in a virtualenv:
+
+```bash
+git clone https://github.com/OWNER/repomap && cd repomap
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+```
+
+Without installing, you can also run it from the cloned folder: `python3 -m repomap path/to/project`.
+
+Python 3.10+. The only dependency is `tree-sitter-language-pack`; language grammars are fetched on first use. repomap is not on PyPI yet, so a plain `pip install repomap` won't find it.
 
 ## What you get
 
@@ -62,7 +74,7 @@ Everything is deterministic static analysis. No AI is involved, so the map can't
 ## Options
 
 ```
-codemap TARGET [-o OUT.html] [--json graph.json] [--branch NAME] [--subdir PATH]
+repomap TARGET [-o OUT.html] [--json graph.json] [--branch NAME] [--subdir PATH]
                [--include-tests] [--title TITLE] [--keep-clone]
 ```
 
@@ -76,9 +88,9 @@ This repo is also a GitHub Action. Copy [`docs/publish-to-pages.yml`](docs/publi
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: OWNER/codemap@main
+- uses: OWNER/repomap@main
   with:
-    output: codemap-site/index.html
+    output: repomap-site/index.html
 ```
 
 ## Known limits
@@ -103,20 +115,20 @@ Static analysis can't see everything a program does at runtime:
 ```bash
 pip install -e ".[dev]"
 pytest
-codemap examples/shop -o shop.html
+repomap examples/shop -o shop.html
 ```
 
 | File | Role |
 |---|---|
-| `codemap/analyzer.py` | Python analyzer (`ast`) |
-| `codemap/polyglot.py` | multi-language engine (tree-sitter) |
-| `codemap/scan.py` | runs both and merges the results |
-| `codemap/template.html` | the viewer |
-| `codemap/render.py` | bundles the viewer and graph into one page |
-| `codemap/cli.py` | command line, cloning, GitHub links |
+| `repomap/analyzer.py` | Python analyzer (`ast`) |
+| `repomap/polyglot.py` | multi-language engine (tree-sitter) |
+| `repomap/scan.py` | runs both and merges the results |
+| `repomap/template.html` | the viewer |
+| `repomap/render.py` | bundles the viewer and graph into one page |
+| `repomap/cli.py` | command line, cloning, GitHub links |
 
 `tests/fixtures/` holds the same inventory example in TypeScript, Go, Java and Rust. Each test pins the links it must produce.
 
 ## License
 
-The viewer bundles [elkjs](https://github.com/kieler/elkjs) 0.9.3 under the Eclipse Public License 2.0; see `codemap/vendor/`.
+The viewer bundles [elkjs](https://github.com/kieler/elkjs) 0.9.3 under the Eclipse Public License 2.0; see `repomap/vendor/`.

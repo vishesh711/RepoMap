@@ -170,7 +170,7 @@ pre.code .l::before { content: attr(data-n); display: inline-block; width: 3.2em
 
 <div class="app">
   <header class="top">
-    <div class="brand"><b>codemap</b><span id="rootName"></span><a id="repoLink" class="repo" hidden target="_blank" rel="noopener"></a></div>
+    <div class="brand"><b>repomap</b><span id="rootName"></span><a id="repoLink" class="repo" hidden target="_blank" rel="noopener"></a></div>
     <div class="langs" id="langs"></div>
     <div class="stats" id="stats"></div>
   </header>
@@ -850,13 +850,13 @@ ui("zFit").onclick = () => fit(true);
 window.addEventListener("resize", () => fit());
 
 /* ---------- toggles ---------- */
-const prefs = (() => { try { return JSON.parse(localStorage.getItem("codemap.opt") || "{}"); } catch { return {}; } })();
+const prefs = (() => { try { return JSON.parse(localStorage.getItem("repomap.opt") || "{}"); } catch { return {}; } })();
 Object.assign(opt, prefs);
 ui("tUses").checked = opt.uses; ui("tGuess").checked = opt.guess; ui("tRaise").checked = opt.raises; ui("tFiles").checked = opt.files;
 for (const [id, k] of [["tUses", "uses"], ["tGuess", "guess"], ["tRaise", "raises"], ["tFiles", "files"]]) {
   ui(id).addEventListener("change", () => {
     opt[k] = ui(id).checked;
-    try { localStorage.setItem("codemap.opt", JSON.stringify(opt)); } catch {}
+    try { localStorage.setItem("repomap.opt", JSON.stringify(opt)); } catch {}
     if (state.view) setView(state.view, true);
   });
 }

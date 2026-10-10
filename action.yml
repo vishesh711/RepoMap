@@ -1,4 +1,4 @@
-name: codemap
+name: repomap
 description: Generate an interactive storyline map of a repository as a single HTML file.
 branding:
   icon: map
@@ -10,7 +10,7 @@ inputs:
     default: "."
   output:
     description: Where to write the HTML map.
-    default: codemap-site/index.html
+    default: repomap-site/index.html
   include-tests:
     description: Also map test files.
     default: "false"
@@ -33,5 +33,5 @@ runs:
       run: |
         args=("${{ inputs.path }}" -o "${{ inputs.output }}")
         if [ "${{ inputs.include-tests }}" = "true" ]; then args+=(--include-tests); fi
-        codemap "${args[@]}"
+        repomap "${args[@]}"
         echo "file=${{ inputs.output }}" >> "$GITHUB_OUTPUT"

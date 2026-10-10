@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from codemap.polyglot import Polyglot
+from repomap.polyglot import Polyglot
 
 FIX = Path(__file__).parent / "fixtures"
 
