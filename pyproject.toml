@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codemap"
+version = "0.2.0"
+description = "Turn any codebase into an interactive storyline map: entry points, call flow, classes and data structures."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["tree-sitter-language-pack>=1.0"]
+keywords = ["code visualization", "call graph", "static analysis", "code review", "ai"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+codemap = "codemap.cli:main"
+
+[tool.setuptools]
+packages = ["codemap"]
+
+[tool.setuptools.package-data]
+codemap = ["template.html", "vendor/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

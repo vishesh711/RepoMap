@@ -1,0 +1,33 @@
+# Copy this file to .github/workflows/codemap.yml in ANY repository.
+# On every push to main it regenerates the map and publishes it with GitHub Pages
+# (Settings > Pages > Source: "GitHub Actions").
+# Replace OWNER/codemap with the repo where codemap lives.
+
+name: Code map
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: OWNER/codemap@main
+        with:
+          output: codemap-site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: codemap-site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,872 @@
+<meta charset="utf-8">
+<title>__TITLE__</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: three-pane workspace. Sidebar (flows + filters) | map canvas on survey grid | inspector (details, storyline, code). */
+:root {
+  --bg: #F3F5F8; --panel: #FFFFFF; --ink: #19202C; --muted: #5A6476; --faint: #8A93A4;
+  --line: #DCE1E8; --grid: #E3E7ED; --hover: #EEF1F6;
+  --entry: #B26B12; --fn: #4552C9; --cls: #0E7671; --data: #B04A22; --guess: #8A93A4; --err: #B4233C;
+  --code-bg: #F6F7FA; --kw: #8436B8; --str: #1F7A3E; --com: #8A93A4; --num: #B04A22;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E1219; --panel: #151A23; --ink: #E3E7EE; --muted: #9AA3B3; --faint: #6B7487;
+  --line: #262D3A; --grid: #1A202B; --hover: #1D2430;
+  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C;
+  --code-bg: #10151D; --kw: #C79BEA; --str: #79C78F; --com: #6B7487; --num: #EC8A60;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0E1219; --panel: #151A23; --ink: #E3E7EE; --muted: #9AA3B3; --faint: #6B7487;
+  --line: #262D3A; --grid: #1A202B; --hover: #1D2430;
+  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C;
+  --code-bg: #10151D; --kw: #C79BEA; --str: #79C78F; --com: #6B7487; --num: #EC8A60;
+  color-scheme: dark; }
+
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-ui); }
+* { box-sizing: border-box; }
+button, input, select { font: inherit; color: inherit; }
+code, .mono { font-family: var(--font-code); }
+
+.app { height: 100%; display: grid; grid-template-columns: 264px minmax(0, 1fr) 380px;
+  grid-template-rows: auto minmax(0, 1fr); grid-template-areas: "top top top" "side map insp"; }
+.top { grid-area: top; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand b { font-family: var(--font-code); font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+.brand span { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo { color: var(--fn); font-size: 13px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repo:hover { text-decoration: underline; }
+.langs { display: flex; gap: 6px; flex-wrap: wrap; }
+.lang { font-size: 11.5px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; color: var(--ink); background: var(--bg); }
+.lang span { color: var(--faint); font-variant-numeric: tabular-nums; }
+.stats { display: flex; gap: 14px; flex-wrap: wrap; margin-left: auto; color: var(--muted); font-size: 12.5px;
+  font-variant-numeric: tabular-nums; }
+.stats strong { color: var(--ink); font-weight: 600; }
+
+.side { grid-area: side; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto;
+  padding-block: 14px; padding-inline: 14px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+  margin: 0 0 6px; }
+.search { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.search:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--fn); outline-offset: 1px; }
+.results { margin-top: 6px; display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.flows { display: flex; flex-direction: column; gap: 2px; }
+.flow { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left;
+  padding: 6px 8px; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.flow:hover { background: var(--hover); }
+.flow:disabled { cursor: default; opacity: 0.6; background: none; }
+.flow[aria-pressed="true"] { background: color-mix(in srgb, var(--fn) 12%, transparent); }
+.flow .nm { font-family: var(--font-code); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow .why { grid-column: 2 / 4; font-size: 11.5px; color: var(--muted); margin-top: -3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flow .ct { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.glyph { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.toggles { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.toggles label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.legend { display: grid; grid-template-columns: 34px 1fr; gap: 5px 8px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.legend svg { overflow: visible; }
+.warn { font-size: 12px; color: var(--muted); }
+
+.map { grid-area: map; position: relative; overflow: hidden; touch-action: none;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px; }
+.map svg#canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+.map svg#canvas.dragging { cursor: grabbing; }
+.mapbar { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; gap: 8px; align-items: center;
+  pointer-events: none; flex-wrap: wrap; }
+.crumb { pointer-events: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 5px 10px; font-size: 12.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb code { font-weight: 600; }
+.crumb select { border: 1px solid var(--line); border-radius: 4px; background: var(--bg); padding: 0 4px; font-size: 12px; }
+.zoom { pointer-events: auto; margin-left: auto; display: flex; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; overflow: hidden; }
+.zoom button { border: 0; background: none; padding: 5px 10px; cursor: pointer; min-width: 34px; }
+.zoom button + button { border-left: 1px solid var(--line); }
+.zoom button:hover { background: var(--hover); }
+.status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
+
+.node { cursor: pointer; }
+.node text { font-family: var(--font-code); font-size: 12.5px; fill: var(--ink); }
+.node .sub { font-family: var(--font-ui); font-size: 11px; fill: var(--muted); }
+.node .fld { font-size: 11.5px; fill: var(--muted); }
+.node .kw { fill: var(--muted); font-weight: 400; }
+.edge path { fill: none; stroke-width: 1.4; }
+.edge.calls path { stroke: var(--fn); }
+.edge.creates path { stroke: var(--cls); }
+.edge.uses path { stroke: var(--faint); stroke-dasharray: 2 4; stroke-width: 1.1; }
+.edge.has path { stroke: var(--data); stroke-dasharray: 6 3; }
+.edge.extends path { stroke: var(--muted); }
+.edge.maybe_calls path { stroke: var(--guess); stroke-dasharray: 5 4; }
+.edge.raises path { stroke: var(--err); stroke-dasharray: 1 3; stroke-width: 1.6; stroke-linecap: round; }
+.dim { opacity: 0.18; transition: opacity 0.15s; }
+.hl path { stroke-width: 2.4; }
+.sel > rect.box { stroke-width: 2.6; }
+
+.insp { grid-area: insp; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); padding-inline: 8px; }
+.tabs button { border: 0; background: none; padding: 10px 12px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); font-weight: 500; }
+.pane { overflow-y: auto; padding-block: 16px; padding-inline: 16px; flex: 1; min-height: 0; }
+.pane h2 { margin: 0; font-family: var(--font-code); font-size: 16px; font-weight: 600; word-break: break-word; text-wrap: balance; }
+.kindtag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; margin-bottom: 6px; }
+.loc { font-family: var(--font-code); font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-all; }
+.loc a { color: var(--fn); }
+.doc { margin: 10px 0 0; color: var(--ink); }
+.sig { margin-top: 12px; font-family: var(--font-code); font-size: 12px; background: var(--code-bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; overflow-x: auto; white-space: pre; }
+.rels { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.rel h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-code); font-size: 12px; border: 1px solid var(--line); background: var(--bg); border-radius: 5px;
+  padding: 2px 8px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; max-width: 100%; }
+.chip:hover { border-color: var(--muted); }
+.chip .glyph { width: 7px; height: 7px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.btn { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--muted); }
+pre.code { margin: 16px 0 0; font: 12px/1.6 var(--font-code); background: var(--code-bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 10px 0; overflow-x: auto; counter-reset: ln; }
+pre.code .l { display: block; padding-inline: 10px 12px; white-space: pre; }
+pre.code .l::before { content: attr(data-n); display: inline-block; width: 3.2em; color: var(--faint); text-align: right;
+  margin-right: 12px; user-select: none; font-variant-numeric: tabular-nums; }
+.t-kw { color: var(--kw); } .t-str { color: var(--str); } .t-com { color: var(--com); font-style: italic; }
+.t-num { color: var(--num); } .t-dec { color: var(--entry); } .t-def { color: var(--fn); font-weight: 600; }
+.empty { color: var(--muted); }
+.story { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.story li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
+.story .n { font-family: var(--font-code); font-size: 11.5px; color: var(--faint); padding-top: 2px; text-align: right;
+  font-variant-numeric: tabular-nums; }
+.story .body { border-left: 2px solid var(--line); padding-left: 10px; min-width: 0; }
+.story .who { font-family: var(--font-code); font-weight: 600; cursor: pointer; }
+.story .who:hover { text-decoration: underline; }
+.story .where { font-family: var(--font-code); font-size: 11.5px; color: var(--faint); margin-left: 6px; }
+.story p { margin: 2px 0 0; color: var(--muted); }
+.story p code { color: var(--ink); cursor: pointer; }
+.story p code:hover { text-decoration: underline; }
+.intro { color: var(--muted); margin: 0; }
+
+@media (max-width: 1100px) { .app { grid-template-columns: 236px minmax(0, 1fr) 320px; } }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 70vh auto;
+    grid-template-areas: "top" "side" "map" "insp"; }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); max-height: none; }
+  .results, .flows { max-height: 240px; overflow-y: auto; }
+  .insp { border-left: 0; border-top: 1px solid var(--line); }
+  .pane { overflow: visible; }
+  .stats { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .dim { transition: none; } }
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><b>codemap</b><span id="rootName"></span><a id="repoLink" class="repo" hidden target="_blank" rel="noopener"></a></div>
+    <div class="langs" id="langs"></div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <aside class="side" aria-label="Flows and filters">
+    <div>
+      <p class="label"><label for="q">Find a symbol</label></p>
+      <input id="q" class="search" type="search" placeholder="Function, class, file…" autocomplete="off">
+      <div class="results" id="results"></div>
+    </div>
+    <div>
+      <p class="label">Start from</p>
+      <div class="flows" id="flows"></div>
+    </div>
+    <div>
+      <p class="label">Show</p>
+      <div class="toggles">
+        <label><input type="checkbox" id="tUses" checked> Type references</label>
+        <label><input type="checkbox" id="tGuess" checked> Guessed calls</label>
+        <label><input type="checkbox" id="tRaise"> Errors raised</label>
+        <label><input type="checkbox" id="tFiles"> Group by file</label>
+      </div>
+    </div>
+    <div>
+      <p class="label">Legend</p>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="warn" id="warnings"></div>
+  </aside>
+
+  <main class="map" id="map">
+    <svg id="canvas" role="img" aria-label="Code map"><g id="vp"></g></svg>
+    <div class="mapbar">
+      <div class="crumb" id="crumb"></div>
+      <div class="zoom">
+        <button type="button" id="zIn" aria-label="Zoom in">+</button>
+        <button type="button" id="zOut" aria-label="Zoom out">−</button>
+        <button type="button" id="zFit">Fit</button>
+      </div>
+    </div>
+    <div class="status" id="status">Laying out the map…</div>
+  </main>
+
+  <aside class="insp" aria-label="Inspector">
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabStory" aria-selected="true">Storyline</button>
+      <button type="button" role="tab" id="tabDetail" aria-selected="false">Details</button>
+    </div>
+    <div class="pane" id="paneStory"></div>
+    <div class="pane" id="paneDetail" hidden></div>
+  </aside>
+</div>
+
+<script>/*__ELK__*/</script>
+<script>
+const G = __GRAPH_JSON__;
+
+/* ---------- indexes ---------- */
+const N = new Map(G.nodes.map(n => [n.id, n]));
+const OUT = new Map(), IN = new Map(), KIDS = new Map();
+for (const n of G.nodes) { OUT.set(n.id, []); IN.set(n.id, []); }
+for (const e of G.edges) { if (N.has(e.source) && N.has(e.target)) { OUT.get(e.source).push(e); IN.get(e.target).push(e); } }
+for (const n of G.nodes) if (n.parent && N.has(n.parent)) {
+  if (!KIDS.has(n.parent)) KIDS.set(n.parent, []);
+  KIDS.get(n.parent).push(n.id);
+}
+for (const k of KIDS.values()) k.sort((a, b) => N.get(a).line - N.get(b).line);
+
+const KIND = {
+  entry: { label: "Entry point", color: "--entry" }, function: { label: "Function", color: "--fn" },
+  method: { label: "Method", color: "--fn" }, class: { label: "Class", color: "--cls" },
+  data: { label: "Data structure", color: "--data" },
+};
+const EDGE = {
+  calls: "calls", creates: "creates", uses: "references type", has: "is made of",
+  extends: "extends", maybe_calls: "probably calls (guessed by name)", raises: "raises",
+};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const disp = n => n.kind === "entry" ? n.name : n.kind === "class" || n.kind === "data" ? n.qualname : n.qualname + "()";
+const dataWord = n => n.label || (n.kind === "data" ? (n.data_kind || "data") : "class");
+
+const state = { view: null, selected: null, layout: null, tf: { x: 0, y: 0, k: 1 } };
+const opt = { uses: true, guess: true, raises: false, files: false };
+const ui = id => document.getElementById(id);
+
+/* ---------- header, legend ---------- */
+ui("rootName").textContent = G.root;
+const s = G.stats;
+ui("stats").innerHTML = [["files", s.files], ["lines", s.lines.toLocaleString()], ["functions", s.functions + s.methods],
+  ["classes", s.classes], ["data", s.data], ["links", s.edges]].map(([k, v]) => `<span><strong>${v}</strong> ${k}</span>`).join("");
+const fmtK = v => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + "k" : String(v);
+const langs = Object.entries(G.languages || {});
+if (langs.length) ui("langs").innerHTML = langs.slice(0, 6).map(([l, v]) =>
+  `<span class="lang" title="${v.files} files">${esc(l)} <span>${fmtK(v.lines)}</span></span>`).join("");
+if (G.repo?.web) {
+  const a = ui("repoLink"); a.href = G.repo.web + (G.repo.sha ? "/tree/" + G.repo.sha : ""); a.textContent = G.repo.slug || G.repo.web; a.hidden = false;
+  ui("rootName").hidden = true;
+}
+const srcUrl = n => G.repo?.web && G.repo?.sha ? `${G.repo.web}/blob/${G.repo.sha}/${(n.repo_path || n.file).split("/").map(encodeURIComponent).join("/")}#L${n.line}-L${n.end_line}` : null;
+ui("legend").innerHTML =
+  ["entry", "function", "class", "data"].map(k => `<span class="glyph" style="background:var(${KIND[k].color});justify-self:center"></span><span>${KIND[k].label}</span>`).join("") +
+  Object.entries({ calls: "calls", creates: "creates", has: "is made of", uses: "references type", extends: "extends", maybe_calls: "guessed call", raises: "raises error" })
+    .map(([t, l]) => `<svg width="34" height="10" class="edge ${t}"><path d="M2 5 H32"/></svg><span>${l}</span>`).join("");
+if (G.warnings?.length) ui("warnings").textContent = G.warnings.length + " file(s) skipped: " + G.warnings.slice(0, 3).join("; ");
+
+/* ---------- edges allowed by toggles ---------- */
+function edgeOn(t) { return !((t === "uses" && !opt.uses) || (t === "maybe_calls" && !opt.guess) || (t === "raises" && !opt.raises)); }
+function isAncestor(a, b) { let p = N.get(b)?.parent; while (p) { if (p === a) return true; p = N.get(p)?.parent; } return false; }
+
+/* ---------- views ---------- */
+const REACH = new Set(["calls", "creates", "maybe_calls", "has", "extends", "raises"]);
+function reachFrom(root, maxDepth = Infinity) {
+  const seen = new Map(), q = [];
+  const add = (id, d) => {
+    if (seen.has(id) || !N.has(id)) return;
+    seen.set(id, d); q.push(id);
+    const n = N.get(id);
+    if (n.parent) add(n.parent, d);
+    const kids = KIDS.get(id) || [];
+    if (kids.length && kids.length <= 8) kids.forEach(k => add(k, d));
+  };
+  add(root, 0);
+  while (q.length) {
+    const id = q.shift(), d = seen.get(id);
+    if (d >= maxDepth) continue;
+    for (const e of OUT.get(id)) if (REACH.has(e.type) && edgeOn(e.type)) add(e.target, d + 1);
+  }
+  return new Set(seen.keys());
+}
+function flowDepth(root) {
+  let full = 0, size = 0;
+  for (let d = 1; d < 60; d++) { const s = reachFrom(root, d).size; if (s === size) break; size = s; full = d; }
+  return full;
+}
+function autoDepth(root) {
+  const full = flowDepth(root);
+  let pick = Math.min(2, full);
+  for (let d = 2; d <= full; d++) { if (reachFrom(root, d).size <= 60) pick = d; else break; }
+  return { pick, full };
+}
+function neighborhood(id) {
+  const seen = new Set([id]);
+  const add = x => { if (!N.has(x)) return; seen.add(x); const p = N.get(x).parent; if (p) seen.add(p); };
+  add(id);
+  for (const k of KIDS.get(id) || []) { add(k); for (const e of OUT.get(k)) if (edgeOn(e.type)) add(e.target); for (const e of IN.get(k)) if (edgeOn(e.type)) add(e.source); }
+  for (const e of OUT.get(id)) if (edgeOn(e.type)) add(e.target);
+  for (const e of IN.get(id)) if (edgeOn(e.type)) add(e.source);
+  return seen;
+}
+function viewSet(v) {
+  if (v.type === "flow") return reachFrom(v.id, v.depth ?? Infinity);
+  if (v.type === "focus") return neighborhood(v.id);
+  return new Set(G.nodes.map(n => n.id));
+}
+
+/* ---------- starting points ---------- */
+const callable = new Set(["calls", "creates", "maybe_calls"]);
+const roots = G.nodes.filter(n => n.entry).map(n => ({ id: n.id, why: n.entry }));
+const entryIds = new Set(roots.map(r => r.id));
+const extra = G.nodes.filter(n => (n.kind === "function" || n.kind === "class") && !entryIds.has(n.id)
+    && !IN.get(n.id).some(e => callable.has(e.type)) && !n.name.startsWith("_"))
+  .map(n => ({ id: n.id, why: "nothing in the project calls this", size: reachFrom(n.id).size }))
+  .filter(r => r.size > 2).sort((a, b) => b.size - a.size).slice(0, 12);
+for (const r of roots) r.size = reachFrom(r.id).size;
+const isRun = r => N.get(r.id).qualname === "<run>";
+const isSetup = r => N.get(r.id).entry === "package-level setup";
+const score = r => (r.size < 3 ? 0.01 : 1) * (isSetup(r) ? 0.05 : 1) * r.size;
+roots.sort((a, b) => score(b) - score(a));
+const starts = [...roots, ...extra];
+const defaultStart = [...starts].sort((a, b) => score(b) - score(a))[0];
+function renderFlows() {
+  const items = starts.map(r => {
+    const n = N.get(r.id);
+    const on = state.view?.type === "flow" && state.view.id === r.id;
+    return `<button type="button" class="flow" data-flow="${esc(r.id)}" aria-pressed="${on}">
+      <span class="glyph" style="background:var(${KIND[n.kind].color})"></span><span class="nm">${esc(disp(n))}</span>
+      <span class="ct">${r.size}</span><span class="why">${esc(r.why)} · ${esc(n.file)}</span></button>`;
+  });
+  const allOn = state.view?.type === "all";
+  const tooBig = G.nodes.length > 1500;
+  items.push(`<button type="button" class="flow" data-flow="__all" aria-pressed="${allOn}" ${tooBig ? "disabled" : ""}>
+    <span class="glyph" style="background:var(--muted)"></span><span class="nm">Whole codebase</span>
+    <span class="ct">${G.nodes.length}</span><span class="why">${tooBig ? "too large to draw at once; pick a starting point" : "every symbol at once"}</span></button>`);
+  ui("flows").innerHTML = items.join("");
+}
+function flowView(id) { const { pick, full } = autoDepth(id); return { type: "flow", id, depth: pick >= full ? Infinity : pick, full }; }
+ui("flows").addEventListener("click", e => {
+  const b = e.target.closest("[data-flow]"); if (!b) return;
+  const id = b.dataset.flow;
+  setView(id === "__all" ? { type: "all" } : flowView(id));
+});
+
+/* ---------- search ---------- */
+ui("q").addEventListener("input", () => {
+  const q = ui("q").value.trim().toLowerCase();
+  if (!q) { ui("results").innerHTML = ""; return; }
+  const hits = G.nodes.filter(n => n.qualname.toLowerCase().includes(q) || n.file.toLowerCase().includes(q)).slice(0, 30);
+  ui("results").innerHTML = hits.length ? hits.map(n => `<button type="button" class="flow" data-hit="${esc(n.id)}">
+    <span class="glyph" style="background:var(${KIND[n.kind].color})"></span><span class="nm">${esc(disp(n))}</span><span></span>
+    <span class="why">${esc(n.file)}:${n.line}</span></button>`).join("") : `<p class="empty" style="margin:4px 8px;font-size:13px">No matches.</p>`;
+});
+ui("results").addEventListener("click", e => {
+  const b = e.target.closest("[data-hit]"); if (!b) return;
+  goTo(b.dataset.hit);
+});
+
+/* ---------- layout ---------- */
+const meas = document.createElement("canvas").getContext("2d");
+function textW(t, font) { meas.font = font; return meas.measureText(t).width; }
+const MONO = () => `500 12.5px ${css("--font-code")}`;
+const MONO_S = () => `400 11.5px ${css("--font-code")}`;
+
+function buildElk(ids) {
+  const show = id => ids.has(id);
+  const elkNodes = new Map();
+  const make = n => {
+    const kids = (KIDS.get(n.id) || []).filter(show);
+    const header = `${dataWord(n)} ${n.qualname}`;
+    if (n.kind === "class" || n.kind === "data") {
+      const allF = n.fields || [];
+      const fields = allF.length > 12 ? [...allF.slice(0, 12), `… ${allF.length - 12} more`] : allF;
+      const fw = Math.max(textW(header, MONO()) + 28, ...fields.map(f => textW(f, MONO_S()) + 28), 150);
+      const head = 34 + fields.length * 17 + (fields.length ? 6 : 0);
+      const o = { id: n.id, labels: [], _n: n, _head: head };
+      if (kids.length) {
+        o.children = kids.map(k => make(N.get(k)));
+        o.layoutOptions = { "elk.padding": `[top=${head + 6},left=14,bottom=14,right=14]`, "elk.direction": "RIGHT",
+          "elk.spacing.nodeNode": "12", "elk.nodeSize.constraints": "MINIMUM_SIZE",
+          "elk.nodeSize.minimum": `(${Math.ceil(fw)},${head + 20})` };
+      } else { o.width = Math.ceil(fw); o.height = head + 6; }
+      return o;
+    }
+    const label = n.kind === "entry" ? n.name : n.name + "()";
+    return { id: n.id, width: Math.ceil(Math.max(textW(label, MONO()) + 30, 96)), height: 36, _n: n };
+  };
+  const top = [];
+  for (const id of ids) { const n = N.get(id); if (n.parent && show(n.parent)) continue; const o = make(n); elkNodes.set(id, o); top.push(o); }
+  let children = top;
+  if (opt.files) {
+    const byFile = new Map();
+    for (const o of top) { const f = o._n.file; if (!byFile.has(f)) byFile.set(f, []); byFile.get(f).push(o); }
+    children = [...byFile.entries()].map(([f, kids]) => ({ id: "file:" + f, _file: f, children: kids,
+      layoutOptions: { "elk.padding": "[top=34,left=16,bottom=16,right=16]" } }));
+  }
+  const edges = [];
+  for (const e of G.edges) {
+    if (!show(e.source) || !show(e.target) || !edgeOn(e.type) || e.source === e.target) continue;
+    if (isAncestor(e.source, e.target) || isAncestor(e.target, e.source)) continue;
+    edges.push({ id: `${e.source}|${e.target}|${e.type}`, sources: [e.source], targets: [e.target], _e: e });
+  }
+  return { id: "root", children, edges, layoutOptions: {
+    "elk.algorithm": "layered", "elk.direction": "DOWN", "elk.hierarchyHandling": "INCLUDE_CHILDREN",
+    "elk.edgeRouting": "ORTHOGONAL", "elk.layered.spacing.nodeNodeBetweenLayers": "54",
+    "elk.spacing.nodeNode": "26", "elk.spacing.edgeNode": "18", "elk.spacing.edgeEdge": "10",
+    "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
+    "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX", "elk.separateConnectedComponents": "true",
+    "elk.spacing.componentComponent": "60", "elk.padding": "[top=70,left=40,bottom=40,right=40]" } };
+}
+
+const elk = new ELK();
+let layoutToken = 0;
+async function setView(v, keepSel) {
+  state.view = v; renderFlows();
+  const tok = ++layoutToken;
+  const ids = viewSet(v);
+  state.viewIds = ids;
+  ui("status").hidden = false;
+  ui("status").textContent = ids.size > 250 ? `Laying out ${ids.size} symbols…` : "Laying out the map…";
+  const n = v.id ? N.get(v.id) : null;
+  const depthCtl = v.type === "flow" && v.full > 1 ? ` · <label for="depth">depth</label> <select id="depth">${
+    Array.from({ length: v.full }, (_, i) => i + 1).map(d => `<option value="${d}" ${(v.depth === Infinity ? v.full : v.depth) === d ? "selected" : ""}>${d === v.full ? d + " (all)" : d}</option>`).join("")}</select>` : "";
+  ui("crumb").innerHTML = v.type === "all" ? `Whole codebase · ${ids.size} symbols`
+    : `${v.type === "flow" ? "Flow from" : "Around"} <code>${esc(disp(n))}</code> · ${ids.size} symbols${depthCtl}`;
+  ui("depth")?.addEventListener("change", ev => {
+    const d = +ev.target.value; setView({ ...v, depth: d >= v.full ? Infinity : d }, true);
+  });
+  try {
+    const res = await elk.layout(buildElk(ids));
+    if (tok !== layoutToken) return;
+    state.layout = res; draw(res); fit();
+    ui("status").hidden = true;
+  } catch (err) {
+    ui("status").textContent = "Couldn't lay out this view: " + err.message;
+  }
+  if (v.type === "flow") { renderStory(v.id); if (!keepSel) { select(v.id, false); showTab("story"); } }
+  else if (v.type === "focus") { if (!keepSel) select(v.id, false); renderStory(v.id); }
+  else { renderStory(null); }
+}
+
+/* ---------- drawing ---------- */
+const SVGNS = "http://www.w3.org/2000/svg";
+const POS = new Map();
+function draw(res) {
+  POS.clear();
+  const vp = ui("vp"); vp.innerHTML = "";
+  const gEdges = document.createElementNS(SVGNS, "g"), gNodes = document.createElementNS(SVGNS, "g");
+  const defs = document.createElementNS(SVGNS, "defs");
+  defs.innerHTML = ["calls", "creates", "uses", "has", "extends", "maybe_calls", "raises"].map(t => {
+    const head = t === "extends" ? `<path d="M1 1 L9 5 L1 9 Z" fill="var(--panel)" stroke="var(--muted)" stroke-width="1.2"/>`
+      : t === "has" ? `<path d="M1 5 L5 1.5 L9 5 L5 8.5 Z" fill="var(--data)"/>`
+      : `<path d="M1 1.5 L9 5 L1 8.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>`;
+    const col = { calls: "--fn", creates: "--cls", uses: "--faint", has: "--data", extends: "--muted", maybe_calls: "--guess", raises: "--err" }[t];
+    return `<marker id="m-${t}" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" style="color:var(${col})">${head}</marker>`;
+  }).join("");
+  vp.append(defs, gEdges, gNodes);
+
+  const abs = new Map();
+  const walk = (node, ox, oy) => {
+    for (const c of node.children || []) {
+      const x = ox + c.x, y = oy + c.y;
+      abs.set(c.id, { x, y });
+      drawNode(gNodes, c, x, y);
+      walk(c, x, y);
+    }
+  };
+  abs.set("root", { x: 0, y: 0 });
+  walk(res, 0, 0);
+
+  const allEdges = [];
+  const collect = node => { for (const e of node.edges || []) allEdges.push(e); for (const c of node.children || []) collect(c); };
+  collect(res);
+  for (const e of allEdges) {
+    const off = abs.get(e.container || "root") || { x: 0, y: 0 };
+    const t = e._e.type;
+    const g = document.createElementNS(SVGNS, "g");
+    g.setAttribute("class", `edge ${t}`);
+    g.dataset.s = e._e.source; g.dataset.t = e._e.target;
+    for (const sec of e.sections || []) {
+      const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint].map(p => [p.x + off.x, p.y + off.y]);
+      const p = document.createElementNS(SVGNS, "path");
+      p.setAttribute("d", roundPath(pts, 6));
+      p.setAttribute("marker-end", `url(#m-${t})`);
+      g.append(p);
+    }
+    const title = document.createElementNS(SVGNS, "title");
+    title.textContent = `${disp(N.get(e._e.source))} ${EDGE[t]} ${disp(N.get(e._e.target))}` + (e._e.line ? ` (line ${e._e.line})` : "");
+    g.append(title);
+    gEdges.append(g);
+  }
+  if (state.selected) markSelected(state.selected);
+}
+function roundPath(pts, r) {
+  if (pts.length < 3) return "M" + pts.map(p => p.join(" ")).join(" L");
+  let d = `M${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [px, py] = pts[i - 1], [cx, cy] = pts[i], [nx, ny] = pts[i + 1];
+    const d1 = Math.hypot(cx - px, cy - py), d2 = Math.hypot(nx - cx, ny - cy);
+    const rr = Math.min(r, d1 / 2, d2 / 2);
+    const ax = cx - (cx - px) / d1 * rr, ay = cy - (cy - py) / d1 * rr;
+    const bx = cx + (nx - cx) / d2 * rr, by = cy + (ny - cy) / d2 * rr;
+    d += ` L${ax} ${ay} Q${cx} ${cy} ${bx} ${by}`;
+  }
+  const l = pts[pts.length - 1];
+  return d + ` L${l[0]} ${l[1]}`;
+}
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.append(e);
+  return e;
+}
+function drawNode(layer, c, x, y) {
+  if (c._file) {
+    const g = el("g", {}, layer);
+    el("rect", { x, y, width: c.width, height: c.height, rx: 10, fill: "none", stroke: "var(--line)", "stroke-width": 1.2, "stroke-dasharray": "4 3" }, g);
+    const t = el("text", { x: x + 14, y: y + 21, "font-size": 12, fill: "var(--muted)", "font-family": "var(--font-code)" }, g);
+    t.textContent = c._file;
+    return;
+  }
+  const n = c._n; if (!n) return;
+  POS.set(n.id, { x, y, w: c.width, h: c.height });
+  const col = `var(${KIND[n.kind].color})`;
+  const g = el("g", { class: "node", "data-id": n.id, tabindex: 0, role: "button", "aria-label": `${KIND[n.kind].label} ${disp(n)}` }, layer);
+  if (n.kind === "class" || n.kind === "data") {
+    el("rect", { class: "box", x, y, width: c.width, height: c.height, rx: 9,
+      fill: `color-mix(in srgb, ${col} 7%, var(--panel))`, stroke: col, "stroke-width": 1.3 }, g);
+    el("line", { x1: x, x2: x + c.width, y1: y + 30, y2: y + 30, stroke: col, "stroke-opacity": 0.35 }, g);
+    const t = el("text", { x: x + 13, y: y + 20 }, g);
+    t.innerHTML = `<tspan class="kw">${esc(dataWord(n))} </tspan><tspan font-weight="600">${esc(n.qualname)}</tspan>`;
+    const allF = n.fields || [];
+    (allF.length > 12 ? [...allF.slice(0, 12), `… ${allF.length - 12} more`] : allF).forEach((f, i) => {
+      const ft = el("text", { class: "fld", x: x + 13, y: y + 49 + i * 17 }, g); ft.textContent = f;
+    });
+  } else {
+    const isEntry = n.kind === "entry" || n.entry;
+    el("rect", { class: "box", x, y, width: c.width, height: c.height, rx: 7,
+      fill: isEntry ? `color-mix(in srgb, var(--entry) 16%, var(--panel))` : "var(--panel)",
+      stroke: isEntry ? "var(--entry)" : col, "stroke-width": isEntry ? 1.6 : 1.2 }, g);
+    if (isEntry) el("path", { d: `M${x + 11} ${y + 13} L${x + 18} ${y + 18} L${x + 11} ${y + 23} Z`, fill: "var(--entry)" }, g);
+    const t = el("text", { x: x + (isEntry ? 24 : 13), y: y + 22.5 }, g);
+    t.textContent = n.kind === "entry" ? n.name : n.name + "()";
+    if (n.is_async) { const a = el("text", { class: "sub", x: x + c.width - 8, y: y + 13, "text-anchor": "end" }, g); a.textContent = "async"; }
+  }
+  const tt = el("title", {}, g); tt.textContent = `${disp(n)} — ${n.file}:${n.line}` + (n.doc ? `\n${n.doc}` : "");
+}
+
+/* ---------- highlight & select ---------- */
+function neighbors(id) {
+  const s = new Set([id]);
+  const kids = KIDS.get(id) || [];
+  for (const k of [id, ...kids]) {
+    s.add(k);
+    for (const e of OUT.get(k) || []) s.add(e.target);
+    for (const e of IN.get(k) || []) s.add(e.source);
+  }
+  for (const x of [...s]) { const p = N.get(x)?.parent; if (p) s.add(p); }
+  return s;
+}
+function highlight(id) {
+  const vp = ui("vp");
+  if (!id) { vp.querySelectorAll(".dim,.hl").forEach(e => e.classList.remove("dim", "hl")); return; }
+  const keep = neighbors(id);
+  const group = new Set([id, ...(KIDS.get(id) || [])]);
+  vp.querySelectorAll(".node").forEach(g => g.classList.toggle("dim", !keep.has(g.dataset.id)));
+  vp.querySelectorAll(".edge").forEach(g => {
+    const on = group.has(g.dataset.s) || group.has(g.dataset.t);
+    g.classList.toggle("dim", !on); g.classList.toggle("hl", on);
+  });
+}
+function markSelected(id) {
+  ui("vp").querySelectorAll(".node.sel").forEach(g => g.classList.remove("sel"));
+  const g = ui("vp").querySelector(`.node[data-id="${CSS.escape(id)}"]`);
+  if (g) g.classList.add("sel");
+}
+const vpEl = ui("vp");
+vpEl.addEventListener("pointerover", e => { const g = e.target.closest(".node"); if (g) highlight(g.dataset.id); });
+vpEl.addEventListener("pointerout", e => { const g = e.target.closest(".node"); if (g && !g.contains(e.relatedTarget)) highlight(null); });
+vpEl.addEventListener("click", e => {
+  const g = e.target.closest(".node"); if (!g || moved) return;
+  e.stopPropagation(); select(g.dataset.id, false); showTab("detail");
+});
+vpEl.addEventListener("keydown", e => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest(".node")) {
+    e.preventDefault(); select(e.target.closest(".node").dataset.id, false); showTab("detail");
+  }
+});
+
+function select(id, pan) {
+  state.selected = id; markSelected(id); renderDetail(id);
+  if (pan) centerOn(id);
+}
+function goTo(id) {
+  if (!POS.has(id)) { setView({ type: "focus", id }).then(() => { select(id, false); showTab("detail"); }); return; }
+  select(id, true); showTab("detail");
+}
+
+/* ---------- inspector ---------- */
+function showTab(t) {
+  ui("tabStory").setAttribute("aria-selected", t === "story"); ui("tabDetail").setAttribute("aria-selected", t === "detail");
+  ui("paneStory").hidden = t !== "story"; ui("paneDetail").hidden = t !== "detail";
+}
+ui("tabStory").onclick = () => showTab("story");
+ui("tabDetail").onclick = () => showTab("detail");
+
+function chip(id) {
+  const n = N.get(id); if (!n) return "";
+  return `<button type="button" class="chip" data-go="${esc(id)}"><span class="glyph" style="background:var(${KIND[n.kind].color})"></span>${esc(disp(n))}</button>`;
+}
+function renderDetail(id) {
+  const n = N.get(id); if (!n) return;
+  const group = [id, ...(KIDS.get(id) || [])];
+  const collect = (map, types, side) => {
+    const out = new Map();
+    for (const g of group) for (const e of map.get(g) || []) {
+      if (!types.includes(e.type)) continue;
+      const other = side === "out" ? e.target : e.source;
+      if (group.includes(other)) continue;
+      if (!out.has(other)) out.set(other, e.line);
+    }
+    return [...out.entries()].sort((a, b) => a[1] - b[1]).map(x => x[0]);
+  };
+  const rels = [
+    ["Calls", collect(OUT, ["calls"], "out")],
+    ["Creates", collect(OUT, ["creates"], "out")],
+    ["Probably calls", collect(OUT, ["maybe_calls"], "out")],
+    ["Made of", collect(OUT, ["has"], "out")],
+    ["Extends", collect(OUT, ["extends"], "out")],
+    ["Raises", collect(OUT, ["raises"], "out")],
+    ["Works with types", collect(OUT, ["uses"], "out")],
+    ["Called by", collect(IN, ["calls", "maybe_calls"], "in")],
+    ["Created by", collect(IN, ["creates"], "in")],
+    ["Part of", collect(IN, ["has"], "in")],
+    ["Extended by", collect(IN, ["extends"], "in")],
+    ["Raised by", collect(IN, ["raises"], "in")],
+    ["Referenced by", collect(IN, ["uses"], "in")],
+  ].filter(r => r[1].length);
+  const members = KIDS.get(id) || [];
+  const recursive = (OUT.get(id) || []).some(e => e.target === id);
+  ui("paneDetail").innerHTML = `
+    <div class="kindtag" style="color:var(${KIND[n.kind].color})"><span class="glyph" style="background:var(${KIND[n.kind].color})"></span>${esc(n.kind === "data" ? (n.data_kind || "data structure") : n.label || KIND[n.kind].label)}${n.is_async ? " · async" : ""}</div>
+    <h2>${esc(disp(n))}</h2>
+    <div class="loc">${esc(n.file)}:${n.line}–${n.end_line}${n.lang ? ` · ${esc(n.lang)}` : ""}${srcUrl(n) ? ` · <a href="${esc(srcUrl(n))}" target="_blank" rel="noopener">view on GitHub</a>` : ""}</div>
+    ${n.entry ? `<p class="doc"><strong>Entry point:</strong> ${esc(n.entry)}</p>` : ""}
+    ${n.doc ? `<p class="doc">${esc(n.doc)}</p>` : ""}
+    ${recursive ? `<p class="doc">Calls itself (recursive).</p>` : ""}
+    ${n.signature ? `<div class="sig">${esc(n.signature)}</div>` : ""}
+    ${n.decorators?.length ? `<div class="loc">@${n.decorators.map(esc).join(" @")}</div>` : ""}
+    <div class="actions">
+      <button type="button" class="btn" data-act="flow">Show flow from here</button>
+      <button type="button" class="btn" data-act="focus">Show neighbors</button>
+    </div>
+    <div class="rels">
+      ${n.fields?.length ? `<div class="rel"><h3>Fields</h3><div class="sig">${n.fields.map(esc).join("\n")}</div></div>` : ""}
+      ${members.length ? `<div class="rel"><h3>Members</h3><div class="chips">${members.map(chip).join("")}</div></div>` : ""}
+      ${rels.map(([h, ids]) => `<div class="rel"><h3>${h}</h3><div class="chips">${ids.map(chip).join("")}</div></div>`).join("")}
+    </div>
+    <pre class="code">${highlightCode(n.source, n.line, n.lang)}</pre>`;
+}
+ui("paneDetail").addEventListener("click", e => {
+  const c = e.target.closest("[data-go]"); if (c) { goTo(c.dataset.go); return; }
+  const a = e.target.closest("[data-act]"); if (!a || !state.selected) return;
+  setView(a.dataset.act === "flow" ? flowView(state.selected) : { type: "focus", id: state.selected }, true);
+});
+
+/* ---------- storyline (deterministic narration) ---------- */
+function joinList(xs) { return xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1]; }
+function renderStory(rootId) {
+  const pane = ui("paneStory");
+  if (!rootId) {
+    pane.innerHTML = `<p class="intro">Pick a starting point on the left, or click any box, to read the code as a story: what runs first, what it calls, and which data it touches.</p>`;
+    return;
+  }
+  const steps = [], seen = new Set();
+  const visit = id => {
+    if (seen.has(id) || !N.has(id) || steps.length > 80) return;
+    seen.add(id);
+    const n = N.get(id);
+    const parts = [], next = [];
+    if (n.kind === "class" || n.kind === "data") {
+      const kids = KIDS.get(id) || [];
+      const what = n.kind === "data" ? `is ${n.data_kind === "enum" ? "an enum" : "a data structure"}` : "is a class";
+      let txt = `${what}`;
+      if (kids.length) {
+        const vis = state.viewIds ? kids.filter(k => state.viewIds.has(k)) : kids;
+        const shown = (vis.length ? vis : kids).slice(0, 6);
+        txt += kids.length <= 6 ? ` holding ${joinList(kids.map(k => code(k)))}`
+          : ` with ${kids.length} members, including ${joinList(shown.map(k => code(k)))}`;
+      }
+      const has = OUT.get(id).filter(e => e.type === "has").map(e => e.target);
+      const ext = OUT.get(id).filter(e => e.type === "extends").map(e => e.target);
+      if (ext.length) txt += `. It extends ${joinList(ext.map(code))}`;
+      if (has.length) txt += `. It is made of ${joinList(has.map(code))}`;
+      parts.push(txt + ".");
+      next.push(...ext, ...has);
+      const init = kids.find(k => N.get(k).name === "__init__");
+      if (init) next.unshift(init);
+    } else {
+      const outs = OUT.get(id).filter(e => e.target !== id && edgeOn(e.type) && e.type !== "has" && e.type !== "extends")
+        .sort((a, b) => a.line - b.line);
+      const verbs = { calls: "calls", creates: "creates", maybe_calls: "probably calls", uses: "works with", raises: "can raise" };
+      const action = outs.filter(e => e.type !== "uses"), types = outs.filter(e => e.type === "uses");
+      const runs = [];
+      for (const e of action) {
+        const last = runs[runs.length - 1];
+        if (last && last.v === e.type) last.t.push(e.target); else runs.push({ v: e.type, t: [e.target] });
+      }
+      if (runs.length) parts.push(runs.map((r, i) => (i ? "then " : "") + verbs[r.v] + " " + joinList(r.t.map(code))).join(", ") + ".");
+      if (types.length) parts.push(`Works with ${joinList(types.map(e => code(e.target)))}.`);
+      if (!outs.length) parts.push("Doesn't call anything else in this project.");
+      next.push(...action.map(e => e.target), ...types.map(e => e.target));
+    }
+    steps.push({ id, text: parts.join(" ") });
+    for (const t of next) visit(t);
+  };
+  const code = id => `<code data-go="${esc(id)}">${esc(disp(N.get(id)))}</code>`;
+  visit(rootId);
+  const root = N.get(rootId);
+  pane.innerHTML = `<p class="intro">How <code>${esc(disp(root))}</code> runs, in call order. Steps follow the order calls appear in the source.</p>
+    <ol class="story">${steps.map((s, i) => { const n = N.get(s.id); return `<li><span class="n">${i + 1}</span><div class="body">
+      <span class="who" data-go="${esc(s.id)}" style="color:var(${KIND[n.kind].color})">${esc(disp(n))}</span><span class="where">${esc(n.file)}:${n.line}</span>
+      <p>${s.text}</p></div></li>`; }).join("")}</ol>
+    ${steps.length > 80 ? `<p class="intro">Story trimmed at 80 steps.</p>` : ""}`;
+}
+ui("paneStory").addEventListener("click", e => { const c = e.target.closest("[data-go]"); if (c) goTo(c.dataset.go); });
+
+/* ---------- syntax highlighter (all supported languages) ---------- */
+const KW = new Set(("False None True and as assert async await break class continue def del elif else except finally for from global " +
+  "if import in is lambda nonlocal not or pass raise return try while with yield match case self cls " +
+  "abstract boolean byte catch char const debugger default do double enum export extends final float function goto " +
+  "implements instanceof int interface let long native new null package private protected public short static super " +
+  "switch synchronized this throw throws transient typeof undefined var void volatile type readonly declare namespace " +
+  "keyof never unknown any string number func go chan defer fallthrough map range select struct nil fn impl trait mut " +
+  "pub use mod crate loop where unsafe dyn move ref Self begin end elsif unless until module then rescue ensure " +
+  "echo foreach elseif endif endforeach include require require_once using sealed override virtual internal " +
+  "event delegate operator implicit explicit get set init record true false val object when inline auto signed " +
+  "unsigned sizeof typedef union extern register template typename").split(" "));
+const RX_COMMENT = "\\/\\/[^\\n]*|\\/\\*[\\s\\S]*?\\*\\/";
+const RX_HASH = "|#(?!\\[)[^\\n]*";
+const RX_STRING = "[rbfuRBFU]{0,2}(?:\"\"\"[\\s\\S]*?\"\"\"|'''[\\s\\S]*?'''|\"(?:\\\\.|[^\"\\\\\\n])*\"|'(?:\\\\.|[^'\\\\\\n])*'|`(?:\\\\.|[^`\\\\])*`)";
+const RX_REST = "|(@[\\w.]+|#\\[[^\\]\\n]*\\])|\\b(\\d[\\d_]*\\.?\\d*(?:e[+-]?\\d+)?)\\b|\\b([A-Za-z_$][\\w$]*)\\b";
+function highlightCode(src, start, lang) {
+  const hash = !lang || /Python|Ruby|PHP|Shell/.test(lang);
+  const re = new RegExp("(" + RX_COMMENT + (hash ? RX_HASH : "") + ")|(" + RX_STRING + ")" + RX_REST, "g");
+  let html = "", last = 0, m, prevDef = false;
+  while ((m = re.exec(src))) {
+    html += esc(src.slice(last, m.index)); last = re.lastIndex;
+    if (m[1]) html += `<span class="t-com">${esc(m[1])}</span>`;
+    else if (m[2]) html += `<span class="t-str">${esc(m[2])}</span>`;
+    else if (m[3]) html += `<span class="t-dec">${esc(m[3])}</span>`;
+    else if (m[4]) html += `<span class="t-num">${esc(m[4])}</span>`;
+    else if (m[5]) {
+      if (prevDef) html += `<span class="t-def">${esc(m[5])}</span>`;
+      else if (KW.has(m[5])) html += `<span class="t-kw">${esc(m[5])}</span>`;
+      else html += esc(m[5]);
+      prevDef = /^(def|class|function|func|fn|struct|interface|enum|trait|type|module|impl)$/.test(m[5]); continue;
+    }
+    prevDef = false;
+  }
+  html += esc(src.slice(last));
+  return html.split("\n").map((l, i) => `<span class="l" data-n="${start + i}">${l || " "}</span>`).join("");
+}
+
+/* ---------- pan & zoom ---------- */
+const svg = ui("canvas");
+function applyTf() { const t = state.tf; vpEl.setAttribute("transform", `translate(${t.x} ${t.y}) scale(${t.k})`); }
+function fit(whole) {
+  const r = state.layout; if (!r) return;
+  const W = svg.clientWidth, H = svg.clientHeight;
+  let k = Math.min(1.25, Math.min(W / r.width, H / r.height) * 0.96);
+  const minRead = 0.62;
+  if (!whole && k < minRead) {
+    // Too small to read: keep text legible and start at the top of the story instead.
+    k = minRead;
+    const rootId = state.view?.id, p = rootId && POS.get(rootId);
+    const cx = p ? p.x + p.w / 2 : r.width / 2;
+    state.tf = { k, x: W / 2 - cx * k, y: 10 };
+  } else {
+    k = Math.max(0.08, k);
+    state.tf = { k, x: (W - r.width * k) / 2, y: Math.max(0, (H - r.height * k) / 2) };
+  }
+  applyTf();
+}
+function centerOn(id) {
+  const p = POS.get(id); if (!p) return;
+  const W = svg.clientWidth, H = svg.clientHeight, k = Math.max(state.tf.k, 0.8);
+  state.tf = { k, x: W / 2 - (p.x + p.w / 2) * k, y: H / 2 - (p.y + p.h / 2) * k };
+  applyTf();
+}
+function zoomAt(f, cx, cy) {
+  const t = state.tf, k = Math.min(3, Math.max(0.08, t.k * f));
+  t.x = cx - (cx - t.x) * (k / t.k); t.y = cy - (cy - t.y) * (k / t.k); t.k = k; applyTf();
+}
+svg.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = svg.getBoundingClientRect();
+  zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0018)), e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+let drag = null, moved = false;
+const pointers = new Map();
+svg.addEventListener("pointerdown", e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  moved = false;
+  drag = { x: e.clientX, y: e.clientY, tx: state.tf.x, ty: state.tf.y };
+  if (pointers.size === 2) { const [a, b] = [...pointers.values()]; drag.pinch = Math.hypot(a.x - b.x, a.y - b.y); drag.k = state.tf.k; }
+});
+svg.addEventListener("pointermove", e => {
+  if (!drag || !pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2 && drag.pinch) {
+    const [a, b] = [...pointers.values()], r = svg.getBoundingClientRect();
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    zoomAt((drag.k * d / drag.pinch) / state.tf.k, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+    moved = true; return;
+  }
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!moved && Math.hypot(dx, dy) < 4) return;
+  if (!moved) { svg.setPointerCapture(e.pointerId); svg.classList.add("dragging"); }
+  moved = true;
+  state.tf.x = drag.tx + dx; state.tf.y = drag.ty + dy; applyTf();
+});
+const end = e => { pointers.delete(e.pointerId); if (!pointers.size) { drag = null; svg.classList.remove("dragging"); setTimeout(() => moved = false, 0); } };
+svg.addEventListener("pointerup", end); svg.addEventListener("pointercancel", end);
+ui("zIn").onclick = () => zoomAt(1.25, svg.clientWidth / 2, svg.clientHeight / 2);
+ui("zOut").onclick = () => zoomAt(0.8, svg.clientWidth / 2, svg.clientHeight / 2);
+ui("zFit").onclick = () => fit(true);
+window.addEventListener("resize", () => fit());
+
+/* ---------- toggles ---------- */
+const prefs = (() => { try { return JSON.parse(localStorage.getItem("codemap.opt") || "{}"); } catch { return {}; } })();
+Object.assign(opt, prefs);
+ui("tUses").checked = opt.uses; ui("tGuess").checked = opt.guess; ui("tRaise").checked = opt.raises; ui("tFiles").checked = opt.files;
+for (const [id, k] of [["tUses", "uses"], ["tGuess", "guess"], ["tRaise", "raises"], ["tFiles", "files"]]) {
+  ui(id).addEventListener("change", () => {
+    opt[k] = ui(id).checked;
+    try { localStorage.setItem("codemap.opt", JSON.stringify(opt)); } catch {}
+    if (state.view) setView(state.view, true);
+  });
+}
+
+/* ---------- boot ---------- */
+(async () => {
+  try { await document.fonts.ready; } catch {}
+  renderFlows();
+  const first = defaultStart;
+  if (first) setView(flowView(first.id));
+  else setView({ type: "all" });
+})();
+</script>

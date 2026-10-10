@@ -1,0 +1,37 @@
+name: codemap
+description: Generate an interactive storyline map of a repository as a single HTML file.
+branding:
+  icon: map
+  color: blue
+
+inputs:
+  path:
+    description: Folder to map, relative to the repository root.
+    default: "."
+  output:
+    description: Where to write the HTML map.
+    default: codemap-site/index.html
+  include-tests:
+    description: Also map test files.
+    default: "false"
+
+outputs:
+  file:
+    description: Path of the generated HTML file.
+    value: ${{ steps.map.outputs.file }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: pip install --quiet "${{ github.action_path }}"
+    - id: map
+      shell: bash
+      run: |
+        args=("${{ inputs.path }}" -o "${{ inputs.output }}")
+        if [ "${{ inputs.include-tests }}" = "true" ]; then args+=(--include-tests); fi
+        codemap "${args[@]}"
+        echo "file=${{ inputs.output }}" >> "$GITHUB_OUTPUT"
