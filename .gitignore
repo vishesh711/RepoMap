@@ -9,3 +9,6 @@ venv/
 repomap.html
 *.repomap.html
 graph.json
+repomap.html
+repomap-diff.html
+repomap-report.md
