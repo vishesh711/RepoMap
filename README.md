@@ -121,6 +121,10 @@ This repo is also a GitHub Action. Copy [`docs/publish-to-pages.yml`](docs/publi
 
 Copy [`docs/pr-review.yml`](docs/pr-review.yml) to `.github/workflows/` in any repo. On every PR it posts the change summary as a comment, updated on each push, and attaches the interactive diff map to the workflow run.
 
+## Web app (beta)
+
+`web/` holds the start of the hosted version: sign-in and account creation with GitHub, Google, email + password and magic links, on React + TypeScript + Supabase. Setup steps are in [`web/README.md`](web/README.md).
+
 ## Known limits
 
 Static analysis can't see everything a program does at runtime:
