@@ -8,7 +8,7 @@
 :root {
   --bg: #F3F5F8; --panel: #FFFFFF; --ink: #19202C; --muted: #5A6476; --faint: #8A93A4;
   --line: #DCE1E8; --grid: #E3E7ED; --hover: #EEF1F6;
-  --entry: #B26B12; --fn: #4552C9; --cls: #0E7671; --data: #B04A22; --guess: #8A93A4; --err: #B4233C;
+  --entry: #B26B12; --fn: #4552C9; --cls: #0E7671; --data: #B04A22; --guess: #8A93A4; --err: #B4233C; --add: #1E8A4C; --mod: #9C3593; --del: #C0392B;
   --code-bg: #F6F7FA; --kw: #8436B8; --str: #1F7A3E; --com: #8A93A4; --num: #B04A22;
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-code: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -17,13 +17,13 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0E1219; --panel: #151A23; --ink: #E3E7EE; --muted: #9AA3B3; --faint: #6B7487;
   --line: #262D3A; --grid: #1A202B; --hover: #1D2430;
-  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C;
+  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C; --add: #5CCB8A; --mod: #E08AD9; --del: #F08A80;
   --code-bg: #10151D; --kw: #C79BEA; --str: #79C78F; --com: #6B7487; --num: #EC8A60;
   color-scheme: dark; } }
 :root[data-theme="dark"] {
   --bg: #0E1219; --panel: #151A23; --ink: #E3E7EE; --muted: #9AA3B3; --faint: #6B7487;
   --line: #262D3A; --grid: #1A202B; --hover: #1D2430;
-  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C;
+  --entry: #E5A84A; --fn: #8E98F6; --cls: #4EC2B9; --data: #EC8A60; --guess: #6B7487; --err: #F2788C; --add: #5CCB8A; --mod: #E08AD9; --del: #F08A80;
   --code-bg: #10151D; --kw: #C79BEA; --str: #79C78F; --com: #6B7487; --num: #EC8A60;
   color-scheme: dark; }
 
@@ -123,6 +123,39 @@ code, .mono { font-family: var(--font-code); }
 .dim { opacity: 0.18; transition: opacity 0.15s; }
 .hl path { stroke-width: 2.4; }
 .sel > rect.box { stroke-width: 2.6; }
+.node.chg-added > rect.box { stroke: var(--add); stroke-width: 2.4; }
+.node.chg-changed > rect.box { stroke: var(--mod); stroke-width: 2.4; }
+.node.chg-removed { opacity: 0.62; }
+.node.chg-removed > rect.box { stroke: var(--del); stroke-dasharray: 5 3; stroke-width: 1.8; }
+.node.chg-removed > text { text-decoration: line-through; }
+.node.ctx { opacity: 0.5; }
+.badge text { font-family: var(--font-ui); font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em; fill: var(--panel); }
+.edge.e-added path { stroke: var(--add) !important; stroke-width: 2.2; stroke-dasharray: none; }
+.edge.e-removed path { stroke: var(--del) !important; stroke-dasharray: 5 4; stroke-width: 1.6; }
+.chgpill { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  border-radius: 4px; padding: 1px 6px; color: var(--panel); white-space: nowrap; line-height: 1.5; }
+.chgpill.added { background: var(--add); } .chgpill.changed { background: var(--mod); } .chgpill.removed { background: var(--del); }
+.diffbar { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.diffrange { margin: 6px 0 4px; font-size: 12px; color: var(--muted); font-family: var(--font-code); word-break: break-word; }
+.chg-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: center; text-align: left;
+  padding: 6px 8px; border: 0; border-radius: 6px; background: none; cursor: pointer; }
+.chg-item:hover { background: var(--hover); }
+.chg-item .nm { font-family: var(--font-code); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-item .why { grid-column: 1 / 3; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chg-all { grid-template-columns: minmax(0, 1fr) auto; margin-bottom: 4px; }
+#chgList { display: flex; flex-direction: column; gap: 2px; max-height: 340px; overflow-y: auto; }
+.chg-h { margin: 18px 0 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.chg-h span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.story.chg li { grid-template-columns: minmax(0, 1fr); }
+.story.chg .who { margin-left: 6px; }
+.notes { margin: 4px 0 0; padding-left: 18px; color: var(--muted); }
+.story .notes li, .notes li { display: list-item; margin: 2px 0; grid-template-columns: none; }
+.notes code { color: var(--ink); }
+.chgbox { margin-top: 12px; border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--bg); }
+pre.code.diff .l::before { content: none; }
+pre.code.diff .l-add { background: color-mix(in srgb, var(--add) 15%, transparent); }
+pre.code.diff .l-del { background: color-mix(in srgb, var(--del) 15%, transparent); }
+pre.code.diff .l-hunk { color: var(--faint); }
 
 .insp { grid-area: insp; border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .tabs { display: flex; border-bottom: 1px solid var(--line); padding-inline: 8px; }
@@ -195,6 +228,11 @@ pre.code .l::before { content: attr(data-n); display: inline-block; width: 3.2em
       <input id="q" class="search" type="search" placeholder="Function, class, file…" autocomplete="off">
       <div class="results" id="results"></div>
     </div>
+    <div id="diffBox" hidden>
+      <p class="label">What changed</p>
+      <div id="diffSum"></div>
+      <div id="chgList"></div>
+    </div>
     <div>
       <p class="label">Start from</p>
       <div class="flows" id="flows"></div>
@@ -241,9 +279,11 @@ pre.code .l::before { content: attr(data-n); display: inline-block; width: 3.2em
 
   <aside class="insp" aria-label="Inspector">
     <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabChanges" aria-selected="false" hidden>Changes</button>
       <button type="button" role="tab" id="tabStory" aria-selected="true">Storyline</button>
       <button type="button" role="tab" id="tabDetail" aria-selected="false">Details</button>
     </div>
+    <div class="pane" id="paneChanges" hidden></div>
     <div class="pane" id="paneStory"></div>
     <div class="pane" id="paneDetail" hidden></div>
   </aside>
@@ -295,12 +335,78 @@ if (G.repo?.web) {
   const a = ui("repoLink"); a.href = G.repo.web + (G.repo.sha ? "/tree/" + G.repo.sha : ""); a.textContent = G.repo.slug || G.repo.web; a.hidden = false;
   ui("rootName").hidden = true;
 }
-const srcUrl = n => G.repo?.web && G.repo?.sha ? `${G.repo.web}/blob/${G.repo.sha}/${(n.repo_path || n.file).split("/").map(encodeURIComponent).join("/")}#L${n.line}-L${n.end_line}` : null;
+const srcUrl = n => G.repo?.web && (n.sha || G.repo?.sha) ? `${G.repo.web}/blob/${n.sha || G.repo.sha}/${(n.repo_path || n.file).split("/").map(encodeURIComponent).join("/")}#L${n.line}-L${n.end_line}` : null;
 ui("legend").innerHTML =
   ["entry", "function", "class", "data"].map(k => `<span class="glyph" style="background:var(${KIND[k].color});justify-self:center"></span><span>${KIND[k].label}</span>`).join("") +
   Object.entries({ calls: "calls", creates: "creates", has: "is made of", uses: "references type", extends: "extends", maybe_calls: "guessed call", raises: "raises error" })
     .map(([t, l]) => `<svg width="34" height="10" class="edge ${t}"><path d="M2 5 H32"/></svg><span>${l}</span>`).join("");
 if (G.warnings?.length) ui("warnings").textContent = G.warnings.length + " file(s) skipped: " + G.warnings.slice(0, 3).join("; ");
+
+/* ---------- diff mode ---------- */
+const D = G.diff || null;
+const CH = n => (D && n && (n.change === "added" || n.change === "changed" || n.change === "removed")) ? n.change : null;
+const CHLABEL = { added: "new", changed: "changed", removed: "removed" };
+const mdCode = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+function changesSet() {
+  const s = new Set();
+  const add = id => { if (!N.has(id)) return; s.add(id); const p = N.get(id).parent; if (p) s.add(p); };
+  for (const n of G.nodes) {
+    if (!CH(n)) continue;
+    add(n.id);
+    for (const e of OUT.get(n.id)) if (e.type !== "uses" || CH(N.get(e.target))) add(e.target);
+    for (const e of IN.get(n.id)) if (["calls", "creates", "maybe_calls", "has", "extends"].includes(e.type)) add(e.source);
+  }
+  for (const e of G.edges) if (e.change === "added" || e.change === "removed") { add(e.source); add(e.target); }
+  return s;
+}
+function diffCounts() {
+  const c = D.counts;
+  return `<span class="chgpill added">+${c.added} new</span><span class="chgpill changed">~${c.changed} changed</span><span class="chgpill removed">−${c.removed} removed</span>`;
+}
+function renderDiffSide() {
+  if (!D) return;
+  ui("diffBox").hidden = false;
+  const items = D.summary.slice(0, 300);
+  ui("diffSum").innerHTML = `<div class="diffbar">${diffCounts()}</div>
+    <p class="diffrange">${esc(D.base)} → ${esc(D.head)}</p>`;
+  ui("chgList").innerHTML = (items.length ? `<button type="button" class="flow chg-all" data-chg-all="1" aria-pressed="${state.view?.type === "changes"}">
+      <span class="nm">All changes on one map</span><span class="ct">${changesSet().size}</span></button>` : "") +
+    items.map(s => `<button type="button" class="chg-item" data-chg="${esc(s.id)}">
+      <span class="chgpill ${s.change}">${CHLABEL[s.change]}</span><span class="nm">${esc(s.name)}</span>
+      <span class="why">${s.entry && s.change === "added" ? "entry point · " : ""}${esc(s.file)}:${s.line}</span></button>`).join("") +
+    (D.summary.length > 300 ? `<p class="why">… ${D.summary.length - 300} more in the Changes tab</p>` : "") +
+    (!items.length ? `<p class="why">No functions, classes or links changed.</p>` : "");
+}
+function renderChanges() {
+  if (!D) return;
+  const pane = ui("paneChanges");
+  if (!D.summary.length) {
+    pane.innerHTML = `<p class="intro">No structural changes between <code>${esc(D.base)}</code> and <code>${esc(D.head)}</code>. Edits may still exist inside comments, formatting or files repomap doesn't read.</p>`;
+    return;
+  }
+  const c = D.counts;
+  const entries = D.summary.filter(s => s.change === "added" && s.entry);
+  const item = s => `<li><div class="body"><span class="chgpill ${s.change}">${CHLABEL[s.change]}</span>
+      <span class="who" data-go="${esc(s.id)}">${esc(s.name)}</span><span class="where">${esc(s.file)}:${s.line}</span>
+      ${s.notes.length ? `<ul class="notes">${s.notes.map(x => `<li>${mdCode(x)}</li>`).join("")}</ul>` : ""}</div></li>`;
+  const section = (title, list, note) => list.length ? `<h3 class="chg-h">${title} <span>${list.length}</span></h3>${note ? `<p class="intro">${note}</p>` : ""}<ol class="story chg">${list.map(item).join("")}</ol>` : "";
+  pane.innerHTML = `<div class="diffbar">${diffCounts()}</div>
+    <p class="intro">${esc(D.base)} → ${esc(D.head)} · ${c.links_added} new links, ${c.links_removed} removed</p>
+    ${section("New entry points", entries, "Reachable from outside the code: routes, pages, commands, scripts. Check they have the auth and validation they need.")}
+    ${section("Added", D.summary.filter(s => s.change === "added" && !s.entry))}
+    ${section("Changed", D.summary.filter(s => s.change === "changed"))}
+    ${section("Removed", D.summary.filter(s => s.change === "removed"))}`;
+}
+function renderDiffText(txt) {
+  return txt.split("\n").map(l => {
+    const cls = l.startsWith("@@") ? "l-hunk" : l.startsWith("+") ? "l-add" : l.startsWith("-") ? "l-del" : "";
+    return `<span class="l ${cls}">${esc(l) || " "}</span>`;
+  }).join("");
+}
+function focusChange(id) {
+  if (state.view?.type === "changes" && POS.has(id)) { select(id, true); showTab("detail"); return; }
+  setView({ type: "changes" }, true).then(() => { if (POS.has(id)) select(id, true); else goTo(id); showTab("detail"); });
+}
 
 /* ---------- edges allowed by toggles ---------- */
 function edgeOn(t) { return !((t === "uses" && !opt.uses) || (t === "maybe_calls" && !opt.guess) || (t === "raises" && !opt.raises)); }
@@ -322,7 +428,8 @@ function reachFrom(root, maxDepth = Infinity) {
   while (q.length) {
     const id = q.shift(), d = seen.get(id);
     if (d >= maxDepth) continue;
-    for (const e of OUT.get(id)) if (REACH.has(e.type) && edgeOn(e.type)) add(e.target, d + 1);
+    const fromRemoved = N.get(id).change === "removed";
+    for (const e of OUT.get(id)) if (REACH.has(e.type) && edgeOn(e.type) && (e.change !== "removed" || fromRemoved)) add(e.target, d + 1);
   }
   return new Set(seen.keys());
 }
@@ -347,6 +454,7 @@ function neighborhood(id) {
   return seen;
 }
 function viewSet(v) {
+  if (v.type === "changes") return changesSet();
   if (v.type === "flow") return reachFrom(v.id, v.depth ?? Infinity);
   if (v.type === "focus") return neighborhood(v.id);
   return new Set(G.nodes.map(n => n.id));
@@ -365,7 +473,8 @@ const isRun = r => N.get(r.id).qualname === "<run>";
 const isSetup = r => N.get(r.id).entry === "package-level setup";
 const score = r => (r.size < 3 ? 0.01 : 1) * (isSetup(r) ? 0.05 : 1) * r.size;
 roots.sort((a, b) => score(b) - score(a));
-const starts = [...roots, ...extra];
+const starts = [...roots.map(r => ({ ...r, boost: isSetup(r) ? 1 : 2 })), ...extra.map(r => ({ ...r, boost: 1 }))]
+  .sort((a, b) => score(b) * b.boost - score(a) * a.boost);
 const defaultStart = [...starts].sort((a, b) => score(b) - score(a))[0];
 function renderFlows() {
   const items = starts.map(r => {
@@ -468,7 +577,8 @@ async function setView(v, keepSel) {
   const n = v.id ? N.get(v.id) : null;
   const depthCtl = v.type === "flow" && v.full > 1 ? ` · <label for="depth">depth</label> <select id="depth">${
     Array.from({ length: v.full }, (_, i) => i + 1).map(d => `<option value="${d}" ${(v.depth === Infinity ? v.full : v.depth) === d ? "selected" : ""}>${d === v.full ? d + " (all)" : d}</option>`).join("")}</select>` : "";
-  ui("crumb").innerHTML = v.type === "all" ? `Whole codebase · ${ids.size} symbols`
+  ui("crumb").innerHTML = v.type === "changes" ? `Changes <code>${esc(D.base)}</code> → ${esc(D.head)} · ${ids.size} symbols`
+    : v.type === "all" ? `Whole codebase · ${ids.size} symbols`
     : `${v.type === "flow" ? "Flow from" : "Around"} <code>${esc(disp(n))}</code> · ${ids.size} symbols${depthCtl}`;
   ui("depth")?.addEventListener("change", ev => {
     const d = +ev.target.value; setView({ ...v, depth: d >= v.full ? Infinity : d }, true);
@@ -483,7 +593,9 @@ async function setView(v, keepSel) {
   }
   if (v.type === "flow") { renderStory(v.id); if (!keepSel) { select(v.id, false); showTab("story"); } }
   else if (v.type === "focus") { if (!keepSel) select(v.id, false); renderStory(v.id); }
+  else if (v.type === "changes") { renderStory(null); if (!keepSel) showTab("changes"); }
   else { renderStory(null); }
+  if (D) renderDiffSide();
 }
 
 /* ---------- drawing ---------- */
@@ -523,6 +635,7 @@ function draw(res) {
     const t = e._e.type;
     const g = document.createElementNS(SVGNS, "g");
     g.setAttribute("class", `edge ${t}`);
+    if (e._e.change === "added" || e._e.change === "removed") g.classList.add("e-" + e._e.change);
     g.dataset.s = e._e.source; g.dataset.t = e._e.target;
     for (const sec of e.sections || []) {
       const pts = [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint].map(p => [p.x + off.x, p.y + off.y]);
@@ -590,6 +703,14 @@ function drawNode(layer, c, x, y) {
     t.textContent = n.kind === "entry" ? n.name : n.name + "()";
     if (n.is_async) { const a = el("text", { class: "sub", x: x + c.width - 8, y: y + 13, "text-anchor": "end" }, g); a.textContent = "async"; }
   }
+  const chg = CH(n);
+  if (chg) {
+    g.classList.add("chg-" + chg);
+    const label = CHLABEL[chg].toUpperCase(), bw = label.length * 6.6 + 12;
+    const b = el("g", { class: "badge" }, g);
+    el("rect", { x: x + c.width - bw - 8, y: y - 9, width: bw, height: 16, rx: 4, fill: `var(--${{ added: "add", changed: "mod", removed: "del" }[chg]})` }, b);
+    const bt = el("text", { x: x + c.width - bw / 2 - 8, y: y + 2.5, "text-anchor": "middle" }, b); bt.textContent = label;
+  } else if (D && state.view?.type === "changes") g.classList.add("ctx");
   const tt = el("title", {}, g); tt.textContent = `${disp(n)} — ${n.file}:${n.line}` + (n.doc ? `\n${n.doc}` : "");
 }
 
@@ -645,9 +766,11 @@ function goTo(id) {
 
 /* ---------- inspector ---------- */
 function showTab(t) {
-  ui("tabStory").setAttribute("aria-selected", t === "story"); ui("tabDetail").setAttribute("aria-selected", t === "detail");
-  ui("paneStory").hidden = t !== "story"; ui("paneDetail").hidden = t !== "detail";
+  for (const [k, tab, pane] of [["changes", "tabChanges", "paneChanges"], ["story", "tabStory", "paneStory"], ["detail", "tabDetail", "paneDetail"]]) {
+    ui(tab).setAttribute("aria-selected", t === k); ui(pane).hidden = t !== k;
+  }
 }
+ui("tabChanges").onclick = () => showTab("changes");
 ui("tabStory").onclick = () => showTab("story");
 ui("tabDetail").onclick = () => showTab("detail");
 
@@ -660,8 +783,10 @@ function renderDetail(id) {
   const group = [id, ...(KIDS.get(id) || [])];
   const collect = (map, types, side) => {
     const out = new Map();
+    const gone = n.change === "removed";
     for (const g of group) for (const e of map.get(g) || []) {
       if (!types.includes(e.type)) continue;
+      if (e.change === "removed" && !gone) continue;
       const other = side === "out" ? e.target : e.source;
       if (group.includes(other)) continue;
       if (!out.has(other)) out.set(other, e.line);
@@ -692,6 +817,9 @@ function renderDetail(id) {
     ${n.entry ? `<p class="doc"><strong>Entry point:</strong> ${esc(n.entry)}</p>` : ""}
     ${n.doc ? `<p class="doc">${esc(n.doc)}</p>` : ""}
     ${recursive ? `<p class="doc">Calls itself (recursive).</p>` : ""}
+    ${CH(n) ? `<div class="chgbox"><span class="chgpill ${n.change}">${CHLABEL[n.change]} in this change</span>
+      ${n.notes?.length ? `<ul class="notes">${n.notes.map(x => `<li>${mdCode(x)}</li>`).join("")}</ul>` : ""}
+      ${n.diff ? `<pre class="code diff">${renderDiffText(n.diff)}</pre>` : ""}</div>` : ""}
     ${n.signature ? `<div class="sig">${esc(n.signature)}</div>` : ""}
     ${n.decorators?.length ? `<div class="loc">@${n.decorators.map(esc).join(" @")}</div>` : ""}
     <div class="actions">
@@ -735,8 +863,9 @@ function renderStory(rootId) {
         txt += kids.length <= 6 ? ` holding ${joinList(kids.map(k => code(k)))}`
           : ` with ${kids.length} members, including ${joinList(shown.map(k => code(k)))}`;
       }
-      const has = OUT.get(id).filter(e => e.type === "has").map(e => e.target);
-      const ext = OUT.get(id).filter(e => e.type === "extends").map(e => e.target);
+      const live = e => e.change !== "removed" || n.change === "removed";
+      const has = OUT.get(id).filter(e => e.type === "has" && live(e)).map(e => e.target);
+      const ext = OUT.get(id).filter(e => e.type === "extends" && live(e)).map(e => e.target);
       if (ext.length) txt += `. It extends ${joinList(ext.map(code))}`;
       if (has.length) txt += `. It is made of ${joinList(has.map(code))}`;
       parts.push(txt + ".");
@@ -744,7 +873,8 @@ function renderStory(rootId) {
       const init = kids.find(k => N.get(k).name === "__init__");
       if (init) next.unshift(init);
     } else {
-      const outs = OUT.get(id).filter(e => e.target !== id && edgeOn(e.type) && e.type !== "has" && e.type !== "extends")
+      const outs = OUT.get(id).filter(e => e.target !== id && edgeOn(e.type) && e.type !== "has" && e.type !== "extends"
+          && (e.change !== "removed" || n.change === "removed"))
         .sort((a, b) => a.line - b.line);
       const verbs = { calls: "calls", creates: "creates", maybe_calls: "probably calls", uses: "works with", raises: "can raise" };
       const action = outs.filter(e => e.type !== "uses"), types = outs.filter(e => e.type === "uses");
@@ -824,9 +954,11 @@ function fit(whole) {
   if (!whole && k < minRead) {
     // Too small to read: keep text legible and start at the top of the story instead.
     k = minRead;
-    const rootId = state.view?.id, p = rootId && POS.get(rootId);
+    const rootId = state.view?.id || (state.view?.type === "changes" ? D?.summary.find(x => POS.has(x.id))?.id : null);
+    const p = rootId && POS.get(rootId);
     const cx = p ? p.x + p.w / 2 : r.width / 2;
-    state.tf = { k, x: W / 2 - cx * k, y: 10 };
+    const top = p && state.view?.type === "changes" ? Math.max(10, H / 3 - (p.y + p.h / 2) * k) : 10;
+    state.tf = { k, x: W / 2 - cx * k, y: p && state.view?.type === "changes" ? H / 3 - (p.y + p.h / 2) * k : top };
   } else {
     k = Math.max(0.08, k);
     state.tf = { k, x: (W - r.width * k) / 2, y: Math.max(0, (H - r.height * k) / 2) };
@@ -976,7 +1108,21 @@ for (const [id, k] of [["tUses", "uses"], ["tGuess", "guess"], ["tRaise", "raise
   try { await document.fonts.ready; } catch {}
   renderFlows();
   const first = defaultStart;
-  if (first) setView(flowView(first.id));
+  if (D) {
+    ui("tabChanges").hidden = false; renderChanges(); renderDiffSide();
+    ui("chgList").addEventListener("click", e => {
+      if (e.target.closest("[data-chg-all]")) { setView({ type: "changes" }); return; }
+      const b = e.target.closest("[data-chg]"); if (b) focusChange(b.dataset.chg);
+    });
+    ui("paneChanges").addEventListener("click", e => { const c = e.target.closest("[data-go]"); if (c) focusChange(c.dataset.go); });
+    ui("legend").innerHTML += `<span class="chgpill added" style="justify-self:start">new</span><span>added in this change</span>
+      <span class="chgpill changed" style="justify-self:start">chg</span><span>changed</span>
+      <span class="chgpill removed" style="justify-self:start">del</span><span>removed (ghosted)</span>
+      <svg width="34" height="10" class="edge calls e-added"><path d="M2 5 H32"/></svg><span>new link</span>
+      <svg width="34" height="10" class="edge calls e-removed"><path d="M2 5 H32"/></svg><span>removed link</span>`;
+  }
+  if (D && D.summary.length) setView({ type: "changes" });
+  else if (first) setView(flowView(first.id));
   else setView({ type: "all" });
 })();
 </script>

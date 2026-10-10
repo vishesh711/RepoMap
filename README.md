@@ -7,6 +7,7 @@ Built for reading code you didn't write line by line, especially code an AI gene
 ```bash
 repomap https://github.com/owner/repo     # any public GitHub repo
 repomap path/to/project                    # a folder on your machine
+repomap --diff main                        # what changed since main, uncommitted edits included
 ```
 
 It writes one self-contained `repomap.html`. Open it in a browser; it works offline.
@@ -47,6 +48,28 @@ Python 3.10+. The only dependency is `tree-sitter-language-pack`; language gramm
 - **Inspector**: click any box for its signature, location, source, and everything it calls, creates, uses or is used by. For GitHub repos there's a **view on GitHub** link pinned to the exact commit.
 - **Moving around**: drag the map, use the on-screen arrow pad or the arrow keys (Shift moves faster), or click and drag the minimap to jump anywhere. Two-finger scroll pans; pinch or ⌘/Ctrl + scroll zooms. `+` / `−` zoom, `0` returns to the start of the flow, `F` fits everything.
 - **Search**, neighbors view, group by file, light and dark themes.
+
+## Diff mode: what did that change actually do?
+
+Run it inside a git repo after an AI (or anyone) edits the code:
+
+```bash
+repomap --diff HEAD                   # just the edits you haven't committed yet
+repomap --diff main                   # everything on this branch vs main, uncommitted edits included
+repomap --diff v1.2 --head v1.3       # between two tags or commits
+repomap owner/repo --diff v1.9.1 --head v1.10.0   # works on GitHub repos too
+```
+
+You get a map of only the code that changed plus its direct neighbors:
+
+- Boxes are badged **new**, **changed** or **removed**. Removed code stays on the map, ghosted, so you can see what used to be connected.
+- Links that appeared are green and links that disappeared are red, so "`checkout()` now calls `PaymentService.charge()`" is visible at a glance.
+- Every changed symbol gets plain notes: *now calls…*, *no longer calls…*, *signature changed from…*, *new fields…*, *used by 3 places…*. The inspector shows its line diff.
+- **New entry points** (routes, pages, commands, scripts) are listed first, because they're what outsiders can reach and what most needs an auth and validation check.
+
+Formatting-only edits and code that just moved within a file don't count as changes.
+
+The terminal prints the same summary, and `--report changes.md` writes it as Markdown, ready for a PR comment.
 
 ## How it works
 
@@ -94,6 +117,10 @@ This repo is also a GitHub Action. Copy [`docs/publish-to-pages.yml`](docs/publi
     output: repomap-site/index.html
 ```
 
+### Review every pull request automatically
+
+Copy [`docs/pr-review.yml`](docs/pr-review.yml) to `.github/workflows/` in any repo. On every PR it posts the change summary as a comment, updated on each push, and attaches the interactive diff map to the workflow run.
+
 ## Known limits
 
 Static analysis can't see everything a program does at runtime:
@@ -105,7 +132,6 @@ Static analysis can't see everything a program does at runtime:
 
 ## Roadmap
 
-- **Diff mode**: map two commits and show only what changed structurally ("this change added a call from `checkout()` into `PaymentService`").
 - **Security overlay**: draw findings (secrets, unauthenticated routes, user input reaching SQL) on the same map.
 - **Rules**: fail CI when a change breaks a project rule, such as a route without auth middleware.
 - **AI narration**: an LLM explains a flow, citing only graph facts.
@@ -124,6 +150,7 @@ repomap examples/shop -o shop.html
 | `repomap/analyzer.py` | Python analyzer (`ast`) |
 | `repomap/polyglot.py` | multi-language engine (tree-sitter) |
 | `repomap/scan.py` | runs both and merges the results |
+| `repomap/diff.py` | diff mode: snapshots, matching, change notes, reports |
 | `repomap/template.html` | the viewer |
 | `repomap/render.py` | bundles the viewer and graph into one page |
 | `repomap/cli.py` | command line, cloning, GitHub links |

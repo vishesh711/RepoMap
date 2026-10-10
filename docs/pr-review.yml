@@ -1,0 +1,46 @@
+# Copy this file to .github/workflows/repomap-pr.yml in ANY repository.
+# On every pull request it maps what the PR changes structurally, posts the
+# summary as a PR comment (updated on each push), and attaches the interactive
+# diff map to the workflow run.
+
+name: repomap PR review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # history is needed to compare against the base branch
+
+      - id: repomap
+        uses: vishesh711/repomap@main
+        with:
+          diff-base: origin/${{ github.base_ref }}
+          output: repomap-diff.html
+          report: repomap-report.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: repomap-diff
+          path: repomap-diff.html
+
+      - name: Comment on the PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            cat repomap-report.md
+            echo
+            echo "Interactive map: download **repomap-diff** from the [workflow run]($RUN_URL), then open the HTML file."
+          } > comment.md
+          gh pr comment "$PR" --body-file comment.md --edit-last 2>/dev/null || gh pr comment "$PR" --body-file comment.md

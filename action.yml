@@ -1,5 +1,5 @@
 name: repomap
-description: Generate an interactive storyline map of a repository as a single HTML file.
+description: Map a repository as an interactive storyline, or show what a pull request changes structurally.
 branding:
   icon: map
   color: blue
@@ -14,11 +14,23 @@ inputs:
   include-tests:
     description: Also map test files.
     default: "false"
+  diff-base:
+    description: >
+      Compare against this git ref (for pull requests: origin/<base branch>) and
+      produce a diff map plus a Markdown summary. Needs a checkout with history
+      (actions/checkout with fetch-depth 0).
+    default: ""
+  report:
+    description: Where to write the Markdown change summary (diff mode only).
+    default: repomap-report.md
 
 outputs:
   file:
     description: Path of the generated HTML file.
     value: ${{ steps.map.outputs.file }}
+  report:
+    description: Path of the Markdown change summary (diff mode only).
+    value: ${{ steps.map.outputs.report }}
 
 runs:
   using: composite
@@ -27,11 +39,23 @@ runs:
       with:
         python-version: "3.12"
     - shell: bash
-      run: pip install --quiet "${{ github.action_path }}"
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: pip install --quiet "$ACTION_PATH"
     - id: map
       shell: bash
+      env:
+        MAP_PATH: ${{ inputs.path }}
+        MAP_OUT: ${{ inputs.output }}
+        MAP_TESTS: ${{ inputs.include-tests }}
+        MAP_BASE: ${{ inputs.diff-base }}
+        MAP_REPORT: ${{ inputs.report }}
       run: |
-        args=("${{ inputs.path }}" -o "${{ inputs.output }}")
-        if [ "${{ inputs.include-tests }}" = "true" ]; then args+=(--include-tests); fi
+        args=("$MAP_PATH" -o "$MAP_OUT")
+        if [ "$MAP_TESTS" = "true" ]; then args+=(--include-tests); fi
+        if [ -n "$MAP_BASE" ]; then
+          args+=(--diff "$MAP_BASE" --report "$MAP_REPORT")
+          echo "report=$MAP_REPORT" >> "$GITHUB_OUTPUT"
+        fi
         repomap "${args[@]}"
-        echo "file=${{ inputs.output }}" >> "$GITHUB_OUTPUT"
+        echo "file=$MAP_OUT" >> "$GITHUB_OUTPUT"
