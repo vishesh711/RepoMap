@@ -21,7 +21,8 @@ def render_html(graph: dict, title: str | None = None) -> str:
                 n["source"] = "\n".join(lines[:limit]) + f"\n… {len(lines) - limit} more lines"
         data = json.dumps(graph, separators=(",", ":"))
     data = data.replace("</", "<\\/")
-    page_title = html.escape(title or f"{graph['root']} code map")
+    default = f"{graph['root']} changes" if graph.get("diff") else f"{graph['root']} code map"
+    page_title = html.escape(title or default)
     return (template
             .replace("__TITLE__", page_title)
             .replace("/*__ELK__*/", elk.replace("</script", "<\\/script"))
